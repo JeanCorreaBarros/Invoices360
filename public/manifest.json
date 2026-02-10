@@ -1,0 +1,28 @@
+{
+  "name": "PlasticosLC - Sistema de Facturacion",
+  "short_name": "PlasticosLC",
+  "description": "Sistema de facturacion y gestion de cobros para PlasticosLC",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#181c27",
+  "theme_color": "#181c27",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "lang": "es",
+  "scope": "/",
+  "prefer_related_applications": false
+}

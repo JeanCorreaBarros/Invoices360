@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 228 14% 11%;
+    --foreground: 0 0% 95%;
+    --card: 228 12% 14%;
+    --card-foreground: 0 0% 95%;
+    --popover: 228 12% 14%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 90 100% 50%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 228 10% 18%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 228 10% 20%;
+    --muted-foreground: 228 5% 55%;
+    --accent: 90 100% 50%;
+    --accent-foreground: 0 0% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 228 10% 22%;
+    --input: 228 10% 22%;
+    --ring: 90 100% 50%;
+    --chart-1: 90 100% 50%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.75rem;
+    --sidebar-background: 228 14% 9%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 90 100% 50%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 228 10% 16%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 228 10% 20%;
+    --sidebar-ring: 90 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Sidebar slide-in animation */
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-in.slide-in-from-left {
+  animation: slideInFromLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(228 14% 11%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(228 10% 25%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(228 10% 35%);
+}
