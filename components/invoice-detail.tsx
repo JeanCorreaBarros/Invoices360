@@ -15,10 +15,10 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-sans">Detalle factura</span>
+              <span className="text-xs font-sans">Detalle factura</span>
             </div>
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-[hsl(0,0%,95%)] font-sans">#{invoice.number}</h2>
+              <h2 className="text-xl font-bold  font-sans">#{invoice.number}</h2>
               <span
                 className={`text-xs px-2.5 py-1 rounded-full font-sans font-medium ${
                   invoice.status === "Unsent"
@@ -46,20 +46,20 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-sans">Empresa</span>
-              <span className="text-sm font-semibold text-[hsl(0,0%,95%)] font-sans flex items-center gap-1.5">
+              <span className="text-xs  font-sans">Empresa</span>
+              <span className="text-sm font-semibold font-sans flex items-center gap-1.5">
                 {invoice.company}
               </span>
             </div>
             <div className="flex flex-col items-start sm:items-end">
-              <span className="text-xs text-muted-foreground font-sans">Cliente</span>
+              <span className="text-xs  font-sans">Cliente</span>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-[hsl(228,10%,25%)] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[hsl(0,0%,80%)] font-sans">
+                <div className="w-6 h-6 rounded-full  bg-[hsl(226,79%,22%)] flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-white font-sans">
                     {invoice.customerAvatar}
                   </span>
                 </div>
-                <span className="text-sm font-medium text-[hsl(0,0%,90%)] font-sans">
+                <span className="text-sm font-medium  font-sans">
                   {invoice.customer}
                 </span>
               </div>
@@ -74,16 +74,16 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           {invoice.lineItems.map((item) => (
             <div
               key={item.description}
-              className="flex items-center justify-between p-4 rounded-xl bg-secondary"
+              className="flex items-center justify-between p-4 hover:scale-95 cursor-pointer rounded-xl bg-[#295582] "
             >
               <div className="flex items-center gap-2">
                 <span className="text-[hsl(0,0%,55%)] text-xs font-sans">$</span>
-                <span className="text-sm font-semibold text-[hsl(0,0%,95%)] font-sans">
+                <span className="text-sm font-semibold text-[hsl(0,0%,100%)] font-sans">
                   {item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <span className="text-sm text-muted-foreground font-sans">{item.description}</span>
+              <span className="text-sm text-white font-sans">{item.description}</span>
             </div>
           ))}
         </div>
@@ -92,20 +92,20 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         <div className="mt-6 pt-4 border-t border-border">
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-sans">Sub Total</span>
-              <span className="text-sm font-semibold text-[hsl(0,0%,95%)] font-sans">
+              <span className="text-xs  font-sans">Sub Total</span>
+              <span className="text-sm font-semibold  font-sans">
                 {invoice.subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-sans">Total</span>
-              <span className="text-sm font-semibold text-[hsl(0,0%,95%)] font-sans">
+              <span className="text-xs  font-sans">Total</span>
+              <span className="text-sm font-semibold  font-sans">
                 {invoice.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-sans">Balance Pendiente</span>
-              <span className="text-sm font-bold text-[hsl(0,0%,95%)] font-sans">
+              <span className="text-xs  font-sans">Balance Pendiente</span>
+              <span className="text-sm font-bold  font-sans">
                 {invoice.balanceDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -139,7 +139,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           </div>
           <button
             type="button"
-            className="px-5 py-2.5 rounded-lg bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)] text-sm font-semibold font-sans hover:bg-[hsl(90,100%,45%)] transition-colors"
+            className="px-5 py-2.5 rounded-lg bg-[hsl(209,83%,23%)] text-[hsl(0,0%,100%)] text-sm font-semibold font-sans hover:bg-[hsl(209,82%,28%)] hover:scale-95 transition-colors"
           >
             Pagar ahora
           </button>

@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter, usePathname } from "next/navigation"
+import { ThemeToggle } from "@/components/theme-toggle"
+
 import {
   FileText,
   CreditCard,
@@ -21,10 +23,10 @@ import {
 } from "lucide-react"
 
 const navItems = [
- { icon: FileText, label: "Facturas", active: true, section: "principal", href: "/" },
-  { icon: Calculator, label: "Estimados", active: false, section: "principal", href: "/estimados" },
-  { icon: CreditCard, label: "Pagos", active: false, section: "principal", href: "/pagos" },
-  { icon: RotateCcw, label: "Recurrentes", active: false, section: "principal", href: "/recurrentes" },
+  { icon: FileText, label: "Facturas", active: true, section: "principal", href: "/" },
+  { icon: Users, label: "Clientes", active: false, section: "principal", href: "/clientes" },
+  { icon: CreditCard, label: "Productos", active: false, section: "principal", href: "/productos" },
+  { icon: RotateCcw, label: "Ventas", active: false, section: "principal", href: "/ventas" },
   { icon: ShoppingCart, label: "Cobros", active: false, section: "principal", href: "/cobros" },
   // Gestion section: añadimos Inventarios, Compras, Ventas
   { icon: BarChart3, label: "Reportes", active: false, section: "gestion", href: "/reportes" },
@@ -48,9 +50,14 @@ export function DashboardHeader() {
     setSidebarOpen(false)
   }
 
+  const handleLogout = () => {
+    logout()
+    router.push("/")
+  }
+
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border bg-[hsl(228,14%,9%)]">
+      <header className="sticky top-0 z-50 border-b border-border bg-white">
         <div className="flex items-center justify-between px-4 lg:px-6 h-14">
           {/* Logo and nav */}
           <div className="flex items-center gap-4">
@@ -58,7 +65,7 @@ export function DashboardHeader() {
             <button
               type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex items-center justify-center w-10 h-10 rounded-lg hover:bg-secondary transition-colors text-[hsl(0,0%,95%)]"
+              className="hidden lg:flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 transition-colors text-[hsl(0,3%,8%)]"
               aria-label="Abrir menu"
             >
               {sidebarOpen ? (
@@ -69,10 +76,10 @@ export function DashboardHeader() {
             </button>
 
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[hsl(90,100%,50%)] flex items-center justify-center">
-                <span className="text-[hsl(0,0%,5%)] font-bold text-sm font-sans">P</span>
+              <div className="w-8 hidden h-8 rounded-lg bg-red-500 flex items-center justify-center">
+                <span className="text-white font-bold text-sm font-sans">PLC</span>
               </div>
-              <span className="text-[hsl(0,0%,95%)] font-semibold text-sm font-sans">
+              <span className="text-[hsl(251,55%,25%)] font-semibold text-md font-sans">
                 PlasticosLC
               </span>
             </div>
@@ -90,11 +97,10 @@ export function DashboardHeader() {
                       key={item.label}
                       type="button"
                       onClick={() => item.href && handleNavigation(item.href)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-sans transition-colors ${
-                        isActive
-                          ? "bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)] font-medium"
-                          : "text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-sans transition-colors ${isActive
+                          ? "bg-[hsl(209,79%,35%)] text-white font-medium"
+                          : "text-muted-foreground hover:text-white hover:bg-[hsl(209,79%,35%)]"
+                        }`}
                     >
                       <item.icon className="h-4 w-4" />
                       {item.label}
@@ -105,20 +111,21 @@ export function DashboardHeader() {
           </div>
 
           {/* Right side - User (desktop only) */}
-          <div className="hidden lg:flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary">
-              <div className="w-6 h-6 rounded-full bg-[hsl(90,100%,50%,0.2)] flex items-center justify-center">
-                <span className="text-[hsl(90,100%,50%)] text-xs font-bold font-sans">
+          <div className="hidden lg:flex items-center gap-2">
+            {/*<ThemeToggle />*/}
+            <div className="flex items-center bg-[hsl(209,79%,35%)] gap-2 px-3 py-1.5 rounded-lg bg-secondary">
+              <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                <span className="text-[hsl(209,83%,23%)] text-xs font-bold font-sans">
                   {user?.name?.charAt(0) || "U"}
                 </span>
               </div>
-              <span className="text-sm text-[hsl(0,0%,85%)] font-sans">{user?.name || "Usuario"}</span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              <span className="text-sm text-[hsl(0,0%,100%)] font-sans">{user?.name || "Usuario"}</span>
+              <ChevronDown className="h-3 w-3 text-white" />
             </div>
             <button
               type="button"
-              onClick={logout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary transition-colors text-sm font-sans"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:scale-95 transition-colors text-sm font-sans"
               aria-label="Cerrar sesion"
             >
               <LogOut className="h-4 w-4" />
@@ -130,187 +137,187 @@ export function DashboardHeader() {
 
       {/* Sidebar Overlay and Panel */}
       {sidebarOpen && (
-        <div className="hidden inset-0 z-50 lg:flex">
-              {/* Backdrop */}
-              <div
-                className="absolute inset-0 bg-[hsl(0,0%,0%,0.6)] backdrop-blur-sm"
+        <div className="hidden lg:flex fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 h-full bg-[hsl(0,0%,0%,0.6)] backdrop-blur-sm animate-in fade-in duration-300"
+
+            onClick={() => setSidebarOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSidebarOpen(false)
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Cerrar menu"
+          />
+
+          {/* Sidebar panel */}
+          <aside
+            className="fixed left-0 top-0 bottom-0 w-72 bg-[hsl(228,14%,9%)] border-r border-border flex flex-col animate-in slide-in-from-left duration-300 z-50"
+            role="navigation"
+            aria-label="Menu completo"
+          >
+            {/* Sidebar header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[hsl(219,75%,17%)] flex items-center justify-center">
+                  <span className=" text-white font-bold text-sm font-sans">PLC</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[hsl(0,0%,95%)] font-semibold text-sm font-sans">
+                    PlasticosLC
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-sans">Facturacion</span>
+                </div>
+              </div>
+              <button
+                type="button"
                 onClick={() => setSidebarOpen(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setSidebarOpen(false)
-                }}
-                role="button"
-                tabIndex={0}
+                className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary transition-colors"
                 aria-label="Cerrar menu"
-              />
-    
-              {/* Sidebar panel */}
-              <aside
-                className="absolute left-0 top-0 bottom-0 w-72 bg-[hsl(228,14%,9%)] border-r border-border flex flex-col animate-in slide-in-from-left duration-300"
-                role="navigation"
-                aria-label="Menu completo"
               >
-                {/* Sidebar header */}
-                <div className="flex items-center justify-between p-4 border-b border-border">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[hsl(90,100%,50%)] flex items-center justify-center">
-                      <span className="text-[hsl(0,0%,5%)] font-bold text-sm font-sans">P</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[hsl(0,0%,95%)] font-semibold text-sm font-sans">
-                        PlasticosLC
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-sans">Facturacion</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarOpen(false)}
-                    className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary transition-colors"
-                    aria-label="Cerrar menu"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-    
-                {/* Navigation sections */}
-                <div className="flex-1 overflow-y-auto py-3 px-3">
-                  {/* Principal */}
-                  <div className="mb-4">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
-                      Principal
-                    </span>
-                    <div className="flex flex-col gap-0.5">
-                      {navItems
-                        .filter((item) => item.section === "principal")
-                        .map((item) => {
-                          const isActive =
-                            pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
-    
-                          return (
-                            <button
-                              key={item.label}
-                              type="button"
-                              onClick={() => {
-                                setSidebarOpen(false)
-                                if (item.href) router.push(item.href)
-                              }}
-                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${
-                                isActive
-                                  ? "bg-[hsl(90,100%,50%,0.12)] text-[hsl(90,100%,50%)] font-medium"
-                                  : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
-                              }`}
-                            >
-                              <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
-                              {item.label}
-                              {isActive && (
-                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[hsl(90,100%,50%)]" />
-                              )}
-                            </button>
-                          )
-                        })}
-                    </div>
-                  </div>
-    
-                  {/* Gestion */}
-                  <div className="mb-4">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
-                      Gestion
-                    </span>
-                    <div className="flex flex-col gap-0.5">
-                      {navItems
-                        .filter((item) => item.section === "gestion")
-                        .map((item) => {
-                          const isActive =
-                            pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
-    
-                          return (
-                            <button
-                              key={item.label}
-                              type="button"
-                              onClick={() => {
-                                setSidebarOpen(false)
-                                if (item.href) router.push(item.href)
-                              }}
-                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${
-                                isActive
-                                  ? "bg-[hsl(90,100%,50%,0.12)] text-[hsl(90,100%,50%)] font-medium"
-                                  : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
-                              }`}
-                            >
-                              <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
-                              {item.label}
-                            </button>
-                          )
-                        })}
-                    </div>
-                  </div>
-    
-                  {/* Otros */}
-                  <div className="mb-4">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
-                      Otros
-                    </span>
-                    <div className="flex flex-col gap-0.5">
-                      {navItems
-                        .filter((item) => item.section === "otros")
-                        .map((item) => {
-                          const isActive =
-                            pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
-    
-                          return (
-                            <button
-                              key={item.label}
-                              type="button"
-                              onClick={() => {
-                                setSidebarOpen(false)
-                                if (item.href) router.push(item.href)
-                              }}
-                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${
-                                isActive
-                                  ? "bg-[hsl(90,100%,50%,0.12)] text-[hsl(90,100%,50%)] font-medium"
-                                  : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
-                              }`}
-                            >
-                              <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
-                              {item.label}
-                            </button>
-                          )
-                        })}
-                    </div>
-                  </div>
-                </div>
-    
-                {/* User section at bottom */}
-                <div className="p-3 border-t border-border">
-                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-secondary mb-2">
-                    <div className="w-9 h-9 rounded-full bg-[hsl(90,100%,50%,0.15)] flex items-center justify-center shrink-0">
-                      <span className="text-[hsl(90,100%,50%)] text-sm font-bold font-sans">
-                        {user?.name?.charAt(0) || "U"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm text-[hsl(0,0%,90%)] font-medium font-sans truncate">
-                        {user?.name || "Usuario"}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground font-sans">
-                        {user?.role || "Rol"}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen(false)
-                      logout()
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-sans text-[hsl(0,60%,60%)] hover:bg-[hsl(0,84%,60%,0.1)] transition-colors"
-                  >
-                    <LogOut className="h-[18px] w-[18px]" />
-                    Cerrar sesion
-                  </button>
-                </div>
-              </aside>
+                <X className="h-5 w-5" />
+              </button>
             </div>
+
+            {/* Navigation sections */}
+            <div className="flex-1 overflow-y-auto py-3 px-3">
+              {/* Principal */}
+              <div className="mb-4">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
+                  Principal
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  {navItems
+                    .filter((item) => item.section === "principal")
+                    .map((item) => {
+                      const isActive =
+                        pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
+
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            setSidebarOpen(false)
+                            if (item.href) router.push(item.href)
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${isActive
+                              ? "bg-[hsl(209,83%,23%)] text-white font-medium"
+                              : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
+                            }`}
+                        >
+                          <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
+                          {item.label}
+                          {isActive && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[hsl(0,0%,100%)]" />
+                          )}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Gestion */}
+              <div className="mb-4">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
+                  Gestion
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  {navItems
+                    .filter((item) => item.section === "gestion")
+                    .map((item) => {
+                      const isActive =
+                        pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
+
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            setSidebarOpen(false)
+                            if (item.href) router.push(item.href)
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${isActive
+                              ? "bg-[hsl(209,83%,23%)] text-white font-medium"
+                              : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
+                            }`}
+                        >
+                          <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
+                          {item.label}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Otros */}
+              <div className="mb-4">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans px-3 mb-2 block">
+                  Otros
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  {navItems
+                    .filter((item) => item.section === "otros")
+                    .map((item) => {
+                      const isActive =
+                        pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
+
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            setSidebarOpen(false)
+                            if (item.href) router.push(item.href)
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans transition-colors ${isActive
+                              ? "bg-[hsl(209,83%,23%)] text-white font-medium"
+                              : "text-[hsl(0,0%,70%)] hover:text-[hsl(0,0%,90%)] hover:bg-secondary"
+                            }`}
+                        >
+                          <item.icon className={`h-[18px] w-[18px] ${isActive ? "stroke-[2.5]" : ""}`} />
+                          {item.label}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* User section at bottom */}
+            <div className="p-3 border-t border-border">
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-secondary mb-2">
+                <div className="w-9 h-9 rounded-full bg-[hsl(209,83%,23%)] flex items-center justify-center shrink-0">
+                  <span className="text-[hsl(0,0%,100%)] text-sm font-bold font-sans">
+                    {user?.name?.charAt(0) || "U"}
+                  </span>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm text-[hsl(0,0%,90%)] font-medium font-sans truncate">
+                    {user?.name || "Usuario"}
+                  </span>
+                  <span className="text-[11px] text-white font-sans">
+                    {user?.role || "Rol"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false)
+                    handleLogout()
+                  }}
+                  className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans text-[hsl(0,60%,60%)] hover:bg-[hsl(0,84%,60%,0.1)] transition-colors"
+                >
+                  <LogOut className="h-[18px] w-[18px]" />
+                  Salir
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
       )}
     </>
   )

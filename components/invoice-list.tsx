@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { invoices, type Invoice } from "@/lib/invoice-data"
+import { useState, useEffect } from "react"
+import { type Invoice } from "@/lib/invoice-data"
 import { InvoiceDetail } from "./invoice-detail"
 import { Search, Filter, MoreVertical, ChevronDown, X } from "lucide-react"
 
@@ -9,8 +9,74 @@ type TabFilter = "all" | "draft" | "unpaid" | "paid"
 
 export function InvoiceList() {
   const [activeTab, setActiveTab] = useState<TabFilter>("unpaid")
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(invoices[2])
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [limit] = useState(5)
+  const [total, setTotal] = useState(0)
+
+  // Fetch invoices from API
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        setLoading(true)
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
+        const token = sessionStorage.getItem("token")
+        const res = await fetch(`${apiBase}invoices?page=${page}&limit=${limit}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        })
+        if (!res.ok) throw new Error("Error al cargar facturas")
+        const data = await res.json()
+
+        // Map API data to Invoice format
+        const mappedInvoices: Invoice[] = (data?.data || []).map((inv: any) => {
+          const initials = inv.orderReceiverName
+            ? inv.orderReceiverName.split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .toUpperCase()
+            : "UN"
+
+          return {
+            id: String(inv.id),
+            number: `${inv.orderPrefix}-${String(inv.orderId).padStart(3, "0")}`,
+            company: "Plásticos LC",
+            customer: inv.orderReceiverName || "N/A",
+            customerAvatar: initials,
+            status: "Unsent" as const,
+            amount: Number(inv.orderTotalAfterTax || 0),
+            daysAgo: inv.orderDate ? `hace ${Math.floor((Date.now() - new Date(inv.orderDate).getTime()) / (1000 * 60 * 60 * 24))} dias` : "N/A",
+            lineItems: (inv.details || []).map((detail: any) => ({
+              description: detail.itemName || detail.product?.name || "Sin nombre",
+              amount: Number(detail.orderItemPrice || 0),
+            })),
+            subtotal: Number(inv.orderSubtotalBeforeTax || 0),
+            total: Number(inv.orderTotalAfterTax || 0),
+            balanceDue: Number(inv.orderTotalAmountDue || inv.orderTotalAfterTax || 0),
+          }
+        })
+
+        setInvoices(mappedInvoices)
+        setTotal(data?.total || 0)
+        if (mappedInvoices.length > 0 && !selectedInvoice) {
+          setSelectedInvoice(mappedInvoices[0])
+        }
+      } catch (err) {
+        console.error("Error fetching invoices:", err)
+        setError("No se pudieron cargar las facturas")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchInvoices()
+  }, [page, limit])
 
   const filteredInvoices = invoices.filter((inv) => {
     switch (activeTab) {
@@ -40,7 +106,7 @@ export function InvoiceList() {
   return (
     <div className="flex flex-col gap-4">
       {/* Filters row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="hidden flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground font-sans">Filtros activos</span>
           <button
@@ -80,7 +146,7 @@ export function InvoiceList() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-[hsl(228,14%,9%)] border border-border overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[hsl(209,83%,23%)] border border-border overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -89,7 +155,7 @@ export function InvoiceList() {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-sans transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? tab.key === "unpaid"
-                  ? "bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)] font-medium"
+                  ? "bg-[hsl(0,0%,100%)] text-[hsl(0,0%,5%)] font-medium"
                   : "bg-secondary text-[hsl(0,0%,95%)] font-medium"
                 : "text-muted-foreground hover:text-[hsl(0,0%,80%)]"
             }`}
@@ -108,7 +174,7 @@ export function InvoiceList() {
             )}
           </button>
         ))}
-        <div className="ml-auto flex items-center">
+        <div className="ml-auto hidden items-center">
           <button type="button" className="p-1.5 text-muted-foreground hover:text-[hsl(0,0%,80%)] transition-colors" aria-label="Mas opciones">
             <MoreVertical className="h-4 w-4" />
           </button>
@@ -119,7 +185,7 @@ export function InvoiceList() {
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Invoice list */}
         <div className="w-full lg:w-[400px] xl:w-[440px] flex flex-col gap-1 shrink-0">
-          <h3 className="text-sm font-medium text-[hsl(0,0%,80%)] font-sans mb-2 px-1">
+          <h3 className="text-sm font-medium text-[hsl(209,83%,23%)] font-sans mb-2 px-1">
             {activeTab === "unpaid"
               ? "Facturas No Pagadas"
               : activeTab === "draft"
@@ -128,8 +194,12 @@ export function InvoiceList() {
                   ? "Facturas Pagadas"
                   : "Todas las Facturas"}
           </h3>
-          {filteredInvoices.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-sm font-sans">
+          {loading ? (
+            <div className="p-8 text-center text-[hsl(209,83%,23%)] text-sm font-sans">Cargando facturas...</div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-500 text-sm font-sans">{error}</div>
+          ) : filteredInvoices.length === 0 ? (
+            <div className="p-8 text-center text-[hsl(209,83%,23%)] text-sm font-sans">
               No hay facturas en esta categoria
             </div>
           ) : (
@@ -138,10 +208,10 @@ export function InvoiceList() {
                 key={inv.id}
                 type="button"
                 onClick={() => handleSelectInvoice(inv)}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left w-full ${
+                className={`flex items-center gap-3 hover:scale-95 p-3 rounded-xl transition-all text-left w-full ${
                   selectedInvoice?.id === inv.id
-                    ? "bg-secondary ring-1 ring-[hsl(90,100%,50%,0.3)]"
-                    : "hover:bg-[hsl(228,10%,16%)]"
+                    ? "bg-[hsl(209,83%,23%)] ring-1 ring-[hsl(90,100%,50%,0.3)] text-[hsl(0,0%,95%)]"
+                    : "text-[hsl(222,15%,10%)] hover:bg-[hsl(209,83%,23%)] hover:text-[hsl(0,0%,95%)]"
                 }`}
               >
                 {/* Avatar */}
@@ -153,8 +223,8 @@ export function InvoiceList() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[hsl(0,0%,90%)] font-sans">
+                  <div className="flex items-center  gap-2">
+                    <span className="text-sm font-medium text-[hsl(0,0%,48%)] font-sans">
                       # {inv.number}
                     </span>
                     <span
@@ -181,12 +251,12 @@ export function InvoiceList() {
                               : "Vencida"}
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground font-sans">{inv.daysAgo}</span>
+                  <span className="text-xs text-[hsl(0,0%,48%)] font-sans">{inv.daysAgo}</span>
                 </div>
 
                 {/* Amount */}
                 <div className="text-right shrink-0">
-                  <span className="text-sm font-semibold text-[hsl(0,0%,95%)] font-sans">
+                  <span className="text-sm font-semibold font-sans">
                     ${inv.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -205,8 +275,8 @@ export function InvoiceList() {
 
             {/* Mobile detail overlay */}
             {showDetail && (
-              <div className="fixed inset-0 z-[60] bg-background lg:hidden overflow-y-auto">
-                <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[hsl(228,14%,9%)] border-b border-border">
+              <div className="fixed inset-0 z-[60] bg-white lg:hidden overflow-y-auto">
+                <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[hsl(230,74%,17%)] border-b border-border">
                   <h3 className="text-lg font-semibold text-[hsl(0,0%,95%)] font-sans">
                     Factura #{selectedInvoice.number}
                   </h3>

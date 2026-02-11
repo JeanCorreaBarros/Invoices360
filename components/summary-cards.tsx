@@ -77,24 +77,24 @@ function MiniChart({ points }: { points: number[] }) {
 
 export function SummaryCards() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1  md:grid-cols-2 xl:grid-cols-4 gap-4">
       {/* Metric Cards */}
       {summaryData.map((item) => (
         <div
           key={item.label}
-          className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-2"
+          className="rounded-2xl border shadow-xl hover:scale-95 border-border bg-card p-5 flex flex-col gap-2"
         >
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-sans">{item.label}</span>
+            <span className="text-black text-xs font-sans">{item.label}</span>
             <item.icon className={`h-4 w-4 ${item.color}`} />
           </div>
           <div className="flex items-baseline gap-1.5">
             {!item.suffix && <span className="text-[hsl(0,0%,55%)] text-sm font-sans">$</span>}
-            <span className="text-2xl font-bold text-[hsl(0,0%,95%)] font-sans tracking-tight">
+            <span className="text-2xl font-bold text-[hsl(0,3%,14%)] font-sans tracking-tight">
               {item.amount}
             </span>
             {item.suffix && (
-              <span className="text-base text-muted-foreground font-sans ml-0.5">{item.suffix}</span>
+              <span className="text-base text-black font-sans ml-0.5">{item.suffix}</span>
             )}
           </div>
           {/* Mini line chart */}
@@ -124,39 +124,39 @@ export function SummaryCards() {
       {/* Payout Card */}
       <div className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs font-sans">{payoutData.label}</span>
+          <span className="text-black text-xs font-sans">{payoutData.label}</span>
           <span className="text-xs text-muted-foreground font-sans">{payoutData.expects}</span>
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-[hsl(0,0%,55%)] text-sm font-sans">$</span>
-          <span className="text-2xl font-bold text-[hsl(0,0%,95%)] font-sans tracking-tight">
+          <span className="text-2xl font-bold text-[hsl(0,3%,14%)] font-sans tracking-tight">
             {payoutData.amount}
           </span>
         </div>
         {/* Payment methods */}
         <div className="flex flex-wrap items-center gap-2 mt-1">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
-            <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[hsl(0,0%,80%)] font-sans text-xs">Visa</span>
+            <Wallet className="h-3.5 w-3.5 text-white" />
+            <span className="text-white font-sans text-xs">Visa</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(90,100%,50%)] text-sm">
-            <span className="text-[hsl(0,0%,5%)] font-sans text-xs font-medium">#177210</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(209,83%,23%)] text-sm">
+            <span className="text-[hsl(0,0%,100%)] font-sans text-xs font-medium">#177210</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
-            <span className="text-[hsl(0,0%,80%)] font-sans text-xs">#711221</span>
+            <span className="text-[hsl(0,0%,100%)] font-sans text-xs">#711221</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
-            <span className="text-[hsl(0,0%,80%)] font-sans text-xs">Stripe</span>
+            <span className="text-[hsl(0,0%,100%)] font-sans text-xs">Stripe</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
-            <span className="text-[hsl(0,0%,80%)] font-sans text-xs">PayPal</span>
+            <span className="text-[hsl(0,0%,100%)] font-sans text-xs">PayPal</span>
           </div>
         </div>
         <button
           type="button"
-          className="mt-auto self-end px-4 py-2 rounded-lg bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)] text-sm font-medium font-sans hover:bg-[hsl(90,100%,45%)] transition-colors"
+          className="mt-auto self-end px-4 hover:scale-95 py-2 rounded-lg bg-[hsl(209,83%,23%)] text-[hsl(0,0%,100%)] text-sm font-medium font-sans hover:bg-[hsl(209,81%,33%)] transition-colors"
         >
           Pagar ahora
         </button>

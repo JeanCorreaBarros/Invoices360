@@ -3,7 +3,10 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 
 import "./globals.css"
+
 import { ClientProviders } from "@/components/client-providers"
+import { ProtectedLayout } from "@/components/protected-layout"
+import { HotToaster } from "@/components/hot-toaster"
 
 const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
@@ -36,9 +39,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={_inter.variable}>
+    <html lang="es" className={_inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased min-h-screen">
-        <ClientProviders>{children}</ClientProviders>
+        <ClientProviders>
+          <ProtectedLayout>{children}</ProtectedLayout>
+        </ClientProviders>
+        <HotToaster />
       </body>
     </html>
   )
