@@ -24,19 +24,21 @@ import {
 
 const navItems = [
   { icon: FileText, label: "Facturas", active: true, section: "principal", href: "/" },
-  { icon: Users, label: "Clientes", active: false, section: "principal", href: "/clientes" },
-  { icon: CreditCard, label: "Productos", active: false, section: "principal", href: "/productos" },
-  { icon: RotateCcw, label: "Ventas", active: false, section: "principal", href: "/ventas" },
-  { icon: ShoppingCart, label: "Cobros", active: false, section: "principal", href: "/cobros" },
+  /*{ icon: Users, label: "Clientes", active: false, section: "principal", href: "/clientes" },
+  { icon: FolderOpen, label: "Productos", active: false, section: "principal", href: "/productos" },*/
+  /*{ icon: FileText, label: "Ventas", active: false, section: "principal", href: "/ventas" },*/
+  { icon: ShoppingCart, label: "Compras", active: false, section: "principal", href: "/compras" },
   // Gestion section: añadimos Inventarios, Compras, Ventas
   { icon: BarChart3, label: "Reportes", active: false, section: "gestion", href: "/reportes" },
   { icon: Users, label: "Clientes", active: false, section: "gestion", href: "/clientes" },
   { icon: FolderOpen, label: "Productos", active: false, section: "gestion", href: "/productos" },
-  { icon: FolderOpen, label: "Inventarios", active: false, section: "gestion", href: "/inventarios" },
-  { icon: ShoppingCart, label: "Compras", active: false, section: "gestion", href: "/compras" },
-  { icon: FileText, label: "Ventas", active: false, section: "gestion", href: "/ventas" },
+  /*{ icon: FolderOpen, label: "Inventarios", active: false, section: "gestion", href: "/inventarios" },*/
+  { icon: Calculator, label: "Proveedores", active: false, section: "gestion", href: "/proveedores" },
+  { icon: CreditCard, label: "Usuarios", active: false, section: "gestion", href: "/usuarios" },
+  /*{ icon: ShoppingCart, label: "Compras", active: false, section: "gestion", href: "/compras" },
+  { icon: FileText, label: "Ventas", active: false, section: "gestion", href: "/ventas" },*/
   { icon: Settings, label: "Configuracion", active: false, section: "otros", href: "/configuracion" },
-  { icon: HelpCircle, label: "Ayuda", active: false, section: "otros", href: "/ayuda" },
+  { icon: HelpCircle, label: "Centro de Ayuda", active: false, section: "otros", href: "/ayuda" },
 ]
 
 export function DashboardHeader() {

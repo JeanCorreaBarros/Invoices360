@@ -1,13 +1,16 @@
 "use client"
 
+import { useState } from "react"
 import type { Invoice } from "@/lib/invoice-data"
 import { Edit3, Trash2, Send, ArrowUpRight } from "lucide-react"
+import { InvoiceEditDialog } from "./invoice-edit-dialog"
 
 interface InvoiceDetailProps {
   invoice: Invoice
 }
 
 export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       {/* Header */}
@@ -117,6 +120,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsEditDialogOpen(true)}
               className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary transition-colors"
               aria-label="Editar factura"
             >
@@ -124,7 +128,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             </button>
             <button
               type="button"
-              className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(0,84%,60%)] hover:bg-[hsl(0,84%,60%,0.1)] transition-colors"
+              className="p-2 rounded-lg hidden text-muted-foreground hover:text-[hsl(0,84%,60%)] hover:bg-[hsl(0,84%,60%,0.1)] transition-colors"
               aria-label="Eliminar factura"
             >
               <Trash2 className="h-4 w-4" />
@@ -145,6 +149,13 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           </button>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <InvoiceEditDialog
+        invoiceId={invoice.id}
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+      />
     </div>
   )
 }

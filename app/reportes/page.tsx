@@ -1,168 +1,380 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Download, FileText, PieChart, BarChart3, TrendingUp, RefreshCw, FileSpreadsheet } from "lucide-react"
+
 import { DashboardHeader } from "@/components/dashboard-header"
-import { Download, Calendar } from "lucide-react"
-import { useState } from "react"
+
+// Skeleton loader component for report cards
+function ReportCardSkeleton() {
+  return (
+    <Card className="border-border">
+      <CardHeader className="space-y-2">
+        <div className="h-6 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+        <div className="h-4 bg-gray-100 rounded w-full animate-pulse"></div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+          <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Skeleton loader component for statistics
+function EstadisticasSkeleton() {
+  return (
+    <>
+      <div className="text-center">
+        <div className="h-8 bg-gray-200 rounded w-12 mx-auto mb-2 animate-pulse"></div>
+        <div className="h-4 bg-gray-100 rounded w-20 mx-auto animate-pulse"></div>
+      </div>
+      <div className="text-center">
+        <div className="h-8 bg-gray-200 rounded w-12 mx-auto mb-2 animate-pulse"></div>
+        <div className="h-4 bg-gray-100 rounded w-20 mx-auto animate-pulse"></div>
+      </div>
+      <div className="text-center">
+        <div className="h-8 bg-gray-200 rounded w-12 mx-auto mb-2 animate-pulse"></div>
+        <div className="h-4 bg-gray-100 rounded w-20 mx-auto animate-pulse"></div>
+      </div>
+      <div className="text-center">
+        <div className="h-8 bg-gray-200 rounded w-12 mx-auto mb-2 animate-pulse"></div>
+        <div className="h-4 bg-gray-100 rounded w-20 mx-auto animate-pulse"></div>
+      </div>
+    </>
+  )
+}
+
+
+
+
+interface DescargarOpciones {
+  tipo: "PDF" | "Excel" | "ZIP"
+  label: string
+  endpoint?: string
+}
+
+interface Reporte {
+  id: number
+  nombre: string
+  descripcion: string
+  icon: any
+  descargas: DescargarOpciones[]
+}
+
+const reportes: Reporte[] = [
+  {
+    id: 1, nombre: "Resumen General de Votación", descripcion: "Estadísticas generales de participación electoral", icon: PieChart, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdfgeneral?formato=oficio" },
+      { tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcelgeneral" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzipgeneral?formato=oficio" }
+    ]
+  },
+  {
+    id: 2, nombre: "Registro por Puestos", descripcion: "Detalle de votantes por cada puesto de votación", icon: BarChart3, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdfporpuesto?formato=oficio" },
+      { tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcelporpuesto" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzipporpuesto?formato=oficio" }
+    ]
+  },
+  {
+    id: 3, nombre: "Registro por Lider", descripcion: "Listado completo de votantes registrados", icon: FileText, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdf?formato=oficio" },
+      { tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcel" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzippdf?formato=oficio" }
+    ]
+  },
+  {
+    id: 4, nombre: "Registro por Programa", descripcion: "Listado completo de votantes registrados", icon: FileText, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdfporprograma?formato=oficio" },
+      { tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcelporprograma" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzipporprograma?formato=oficio" }
+    ]
+  },
+  {
+    id: 5, nombre: "Registro por Documentos", descripcion: "Listado completo de votantes registrados", icon: FileText, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdfcedulas?formato=oficio&modo=cedulas_puesto" },
+      { tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcelcedulas?formato=oficio&modo=cedulas_puesto" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzippdfcedulas?formato=oficio&modo=cedulas_puesto" }
+    ]
+  },
+  {
+    id: 6, nombre: "Registro por Documentos Duplicados", descripcion: "Listado completo de votantes registrados", icon: FileText, descargas: [
+      { tipo: "PDF", label: "Descargar PDF", endpoint: "/reports/dashboard/exportpdfcedulasduplicadas?formato=oficio&modo=cedulas_puesto" },
+      /*{ tipo: "Excel", label: "Descargar Excel", endpoint: "/reports/dashboard/exportexcelduplicados" },
+      { tipo: "ZIP", label: "Descargar ZIP", endpoint: "/reports/dashboard/exportzipduplicados?formato=oficio" }*/
+    ]
+  },
+
+]
+
+interface Estadisticas {
+  totalRegistros: number
+  verificados: number
+  pendientes: number
+  rechazados: number
+}
+
+const defaultEstadisticas: Estadisticas = {
+  totalRegistros: 12458,
+  verificados: 8234,
+  pendientes: 2124,
+  rechazados: 100,
+}
 
 export default function ReportesPage() {
-  const [dateRange, setDateRange] = useState("month")
+  const [estadisticas, setEstadisticas] = useState<Estadisticas>(defaultEstadisticas)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const stats = [
-    {
-      label: "Ingresos Totales",
-      value: "$45,230.50",
-      change: "+12.5%",
-      positive: true,
-    },
-    {
-      label: "Facturas Emitidas",
-      value: "128",
-      change: "+8 este mes",
-      positive: true,
-    },
-    {
-      label: "Clientes Activos",
-      value: "32",
-      change: "+4 nuevos",
-      positive: true,
-    },
-    {
-      label: "Pagos Pendientes",
-      value: "$8,450.00",
-      change: "-15%",
-      positive: false,
-    },
-  ]
+  useEffect(() => {
+    const fetchEstadisticas = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // Descomenta cuando el endpoint esté listo
+        // const data = await reportesApi.getResumen()
+        // setEstadisticas(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al cargar estadísticas')
+        setEstadisticas(defaultEstadisticas)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEstadisticas()
+  }, [])
+
+  const handleDescargar = async (reporteId: number, tipo: string, endpoint?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const token = localStorage.getItem('pspvote_token')
+
+      if (!token) {
+        setError("No autorizado. Por favor inicia sesión nuevamente.")
+        return
+      }
+
+      if (!endpoint) {
+        setError("Endpoint no configurado para este reporte.")
+        return
+      }
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+      const fullUrl = `${apiBaseUrl}${endpoint}`
+
+      console.log(`Consumiendo endpoint: ${fullUrl}`)
+
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} ${response.statusText}`)
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+
+      let fileExtension = 'bin'
+      if (tipo === "PDF") fileExtension = 'pdf'
+      else if (tipo === "Excel") fileExtension = 'xlsx'
+      else if (tipo === "ZIP") fileExtension = 'zip'
+
+      const fileName = `reporte_${reporteId}_${new Date().toLocaleDateString("es-ES").replace(/\//g, "-")}.${fileExtension}`
+
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      console.log(`Reporte descargado: ${fileName}`)
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Error al descargar ${tipo}`)
+      console.error("Error al descargar:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-[hsl(228,14%,9%)]">
+    <div className="min-h-screen bg-white">
       <DashboardHeader />
 
-      <main className="px-4 lg:px-6 py-6 pb-24 lg:pb-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-[hsl(0,0%,95%)]">Reportes</h1>
-            <button className="flex items-center gap-2 bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)] px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity">
-              <Download className="h-5 w-5" />
-              Exportar
-            </button>
+
+      <div className="p-6">
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h2 id="reportes-titulo" className="text-lg font-semibold text-foreground">Generar Reportes</h2>
+            <p className="text-sm text-muted-foreground">Descarga reportes y estadísticas del sistema</p>
           </div>
-
-          {/* Date Range Selector */}
-          <div className="bg-white rounded-lg p-4 mb-6 shadow-sm">
-            <div className="flex items-center gap-4 flex-wrap">
-              <Calendar className="h-5 w-5 text-gray-600" />
-              <div className="flex gap-2">
-                {["week", "month", "quarter", "year"].map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setDateRange(range)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      dateRange === range
-                        ? "bg-[hsl(90,100%,50%)] text-[hsl(0,0%,5%)]"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {range === "week"
-                      ? "Esta Semana"
-                      : range === "month"
-                        ? "Este Mes"
-                        : range === "quarter"
-                          ? "Este Trimestre"
-                          : "Este Año"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-            {stats.map((stat, idx) => (
-              <div key={idx} className="bg-white rounded-lg p-6 shadow-sm">
-                <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mb-2">{stat.value}</p>
-                <p className={`text-sm ${stat.positive ? "text-green-600" : "text-orange-600"}`}>
-                  {stat.change}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid gap-6 lg:grid-cols-2 mb-8">
-            {/* Sales Chart */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Ventas por Mes</h2>
-              <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Gráfico de ventas</p>
-              </div>
-            </div>
-
-            {/* Clients Chart */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Clientes</h2>
-              <div className="space-y-3">
-                {[
-                  { name: "Distribuidora ABC", amount: "$8,500" },
-                  { name: "Tienda XYZ", amount: "$7,200" },
-                  { name: "Empresa DEF", amount: "$6,800" },
-                  { name: "Negocios GHI", amount: "$5,400" },
-                  { name: "Otros", amount: "$17,330.50" },
-                ].map((client, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="text-gray-700">{client.name}</span>
-                    <div className="flex items-center gap-3">
-                      <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[hsl(90,100%,50%)]"
-                          style={{ width: `${100 - (idx + 1) * 15}%` }}
-                        />
-                      </div>
-                      <span className="text-gray-900 font-medium">{client.amount}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Top Products */}
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos Más Vendidos</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-gray-200">
-                  <tr>
-                    <th className="text-left py-3 font-medium text-gray-700">Producto</th>
-                    <th className="text-right py-3 font-medium text-gray-700">Unidades</th>
-                    <th className="text-right py-3 font-medium text-gray-700">Ingresos</th>
-                    <th className="text-right py-3 font-medium text-gray-700">% Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { name: "Botella PET 500ml", units: 1250, revenue: "$562.50", percent: 28 },
-                    { name: "Botella PET 1L", units: 850, revenue: "$552.50", percent: 19 },
-                    { name: "Película Strech", units: 320, revenue: "$800", percent: 18 },
-                    { name: "Tapa Plástica", units: 2150, revenue: "$107.50", percent: 15 },
-                    { name: "Otros", units: 480, revenue: "$1,208", percent: 20 },
-                  ].map((product, idx) => (
-                    <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 text-gray-900">{product.name}</td>
-                      <td className="text-right py-3 text-gray-700">{product.units}</td>
-                      <td className="text-right py-3 text-gray-900 font-medium">{product.revenue}</td>
-                      <td className="text-right py-3">
-                        <span className="text-[hsl(90,100%,50%)] font-medium">{product.percent}%</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setLoading(true)
+                try {
+                  await new Promise((resolve) => setTimeout(resolve, 1000))
+                  setEstadisticas(defaultEstadisticas)
+                  console.log("Estadísticas actualizadas")
+                } catch (err) {
+                  setError("Error al actualizar estadísticas")
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Actualizando..." : "Actualizar"}
+            </Button>
           </div>
         </div>
-      </main>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className=" hidden grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+          id="estadisticas-cards"
+        >
+          {[
+            { label: "Total Registros", value: estadisticas.totalRegistros, color: "bg-blue-50" },
+            { label: "Verificados", value: estadisticas.verificados, color: "bg-green-50" },
+            { label: "Pendientes", value: estadisticas.pendientes, color: "bg-yellow-50" },
+            { label: "Rechazados", value: estadisticas.rechazados, color: "bg-red-50" },
+          ].map((stat, index) => (
+            <Card key={index} className={`border-border ${stat.color}`}>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-bold text-foreground mt-2">{stat.value}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          id="reportes-list"
+        >
+          {loading ? (
+            <>
+              <ReportCardSkeleton />
+              <ReportCardSkeleton />
+              <ReportCardSkeleton />
+              <ReportCardSkeleton />
+            </>
+          ) : (
+            reportes.map((reporte, index) => (
+              <motion.div
+                key={reporte.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                id="reporte-card"
+              >
+                <Card className="border-border hover:shadow-md transition-shadow">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <reporte.icon className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{reporte.nombre}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{reporte.descripcion}</p>
+                        <div className="flex items-center gap-3 mt-4 flex-wrap">
+                          {reporte.descargas.map((descarga, idx) => (
+                            <Button
+                              key={idx}
+                              size="sm"
+                              className={`gap-2 text-white ${descarga.tipo === "PDF"
+                                ? "bg-red-600 hover:bg-red-700"
+                                : descarga.tipo === "Excel"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : "bg-violet-600 hover:bg-violet-700"
+                                }`}
+                              onClick={() => handleDescargar(reporte.id, descarga.tipo, descarga.endpoint)}
+                              disabled={loading}
+                            >
+                              {descarga.tipo === "PDF" ? (
+                                <Download className="w-4 h-4" />
+                              ) : descarga.tipo === "Excel" ? (
+                                <FileSpreadsheet className="w-4 h-4" />
+                              ) : (
+                                <Download className="w-4 h-4" />
+                              )}
+                              {descarga.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 hidden"
+        >
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="text-foreground">Estadísticas Rápidas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {loading ? (
+                  <EstadisticasSkeleton />
+                ) : (
+                  [
+                    { label: "Total Registros", value: estadisticas.totalRegistros.toLocaleString(), color: "text-primary" },
+                    { label: "Verificados", value: estadisticas.verificados.toLocaleString(), color: "text-accent" },
+                    { label: "Pendientes", value: estadisticas.pendientes.toLocaleString(), color: "text-chart-3" },
+                    { label: "Rechazados", value: estadisticas.rechazados.toLocaleString(), color: "text-destructive" },
+                  ].map((stat, index) => (
+                    <div key={index} className="text-center p-4 rounded-lg bg-muted/50">
+                      <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   )
 }

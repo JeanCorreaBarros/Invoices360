@@ -67,10 +67,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import { Monitor } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
-export const ssr = false
-export const dynamic = "force-dynamic"
 
-export default function NuevaFacturaPage() {
+interface InvoiceEditDialogProps {
+  invoiceId: number | string | null
+  isOpen: boolean
+  onClose: () => void
+  onSave?: () => void
+}
+
+export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: InvoiceEditDialogProps) {
     const { products: productsList, loading: loadingProducts } = useProductsSearch();
 
     // Arrays de opciones para pagos
@@ -290,6 +295,73 @@ export default function NuevaFacturaPage() {
         fetchCompany();
     }, [])
 
+    // Cargar datos de la factura para edición
+    useEffect(() => {
+        if (isOpen && invoiceId) {
+            fetchInvoiceData()
+        }
+    }, [isOpen, invoiceId])
+
+    const fetchInvoiceData = async () => {
+        try {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
+            const token = sessionStorage.getItem("token")
+
+            const res = await fetch(`${apiBase}invoices/${invoiceId}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            })
+
+            if (!res.ok) throw new Error("Error al cargar factura")
+            const data = await res.json()
+
+            const invoice = data.invoice || data
+
+            // Llenar el formulario con los datos de la factura
+            setCliente(invoice.orderReceiverName || "")
+            setIdentificacion(invoice.orderReceiverNit || "")
+            setTelefono(invoice.orderReceiverPhone || "")
+            setEmail(invoice.orderReceiverEmail || "")
+            setDireccion(invoice.orderReceiverAddress || "")
+            setFecha(invoice.orderDate ? invoice.orderDate.split("T")[0] : "")
+            setNotes(invoice.note || "")
+            setTipoDocumento(invoice.orderPrefix === "NV" ? "Nota de venta" : "Factura de venta")
+            // Set payment forms based on codes
+            const paymentForm = paymentFormsOptions.find(f => f.value === invoice.paymentForms);
+            setFormaPago(paymentForm?.label || "Contado")
+            const paymentMethod = paymentMethodsOptions.find(m => m.value === invoice.paymentMethods);
+            setMedioPago(paymentMethod?.label || "Efectivo")
+
+            // Mapear detalles a items
+            const mappedItems = (invoice.details || invoice.items || []).map((detail: any, idx: number) => ({
+                id: detail.id || idx,
+                referencia: detail.itemCode || detail.reference || "",
+                precio: Number(detail.orderItemPrice) || 0,
+                descuento: Number(detail.orderItemDesc) || 0,
+                impuesto: `${Number(detail.orderItemIva) || 0}%`,
+                descripcion: detail.itemName || detail.descripcion || "",
+                cantidad: Number(detail.orderItemQuantity) || 0,
+                total: Number(detail.orderItemFinalAmount) || 0,
+                productId: detail.productId || "",
+            }))
+            setItems(mappedItems.length > 0 ? mappedItems : [{
+                id: Date.now(),
+                referencia: "",
+                precio: 0,
+                descuento: 0,
+                impuesto: "0%",
+                descripcion: "",
+                cantidad: 1,
+                total: 0,
+            }])
+        } catch (err) {
+            console.error("Error fetching invoice:", err)
+            toast.error("Error al cargar los datos de la factura")
+        }
+    }
+
     useEffect(() => {
         // Calcular totales cuando cambian los items
         let newSubtotal = 0
@@ -319,7 +391,7 @@ export default function NuevaFacturaPage() {
     // useEffect para visualizar el payload en consola en tiempo real
     useEffect(() => {
         const payload = {
-            /*orderId: Date.now(),*/
+            orderId: invoiceId,
             orderPrefix: getOrderPrefix(),
             orderResolution: "RES-2026-001",
             userId: getUserId(),
@@ -373,7 +445,7 @@ export default function NuevaFacturaPage() {
             })
         }
         console.log("📋 Payload en tiempo real:", payload)
-    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes])
+    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes, invoiceId])
 
     const addItem = () => {
         setItems([
@@ -441,16 +513,7 @@ export default function NuevaFacturaPage() {
         return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(value)
     }
 
-    const calculateItemTotal = (item: {
-        id: number
-        referencia: string
-        precio: number
-        descuento: number
-        impuesto: string
-        descripcion: string
-        cantidad: number
-        total: number
-    }) => {
+    const calculateItemTotal = (item: InvoiceItem) => {
         const baseTotal = item.precio * item.cantidad
         const totalConDescuento = baseTotal * (1 - (item.descuento || 0) / 100)
         return totalConDescuento
@@ -577,7 +640,7 @@ export default function NuevaFacturaPage() {
         setShowDownloadDialog(true)
     }
 
-    const handleSaveDraft = async () => {
+    const handleSave = async () => {
         setIsSavingDraft(true)
         const token = getToken();
         const myHeaders = new Headers();
@@ -587,7 +650,7 @@ export default function NuevaFacturaPage() {
         try {
             // Construir payload principal
             const payload = {
-                orderId: Date.now(),
+                orderId: invoiceId,
                 orderPrefix: getOrderPrefix(),
                 orderResolution: "RES-2026-001",
                 userId: getUserId(),
@@ -640,8 +703,8 @@ export default function NuevaFacturaPage() {
                     }
                 })
             }
-            const res = await fetch("https://plasticoslc.com/api/invoices", {
-                method: "POST",
+            const res = await fetch(`https://plasticoslc.com/api/invoices/${invoiceId}`, {
+                method: "PUT",
                 headers: myHeaders,
                 body: JSON.stringify(payload),
             })
@@ -655,10 +718,9 @@ export default function NuevaFacturaPage() {
 
             const created = await res.json().catch(() => null)
             if (created) {
-                alert("Borrador guardado exitosamente!")
-                // Store the invoice ID for downloads
-                setCurrentInvoiceId(created?.id ?? created?.invoiceId ?? null)
-                // Reset form or navigate
+                alert("Factura actualizada exitosamente!")
+                onSave?.()
+                onClose()
             }
         } catch (err) {
             console.error("Error saving draft:", err)
@@ -669,8 +731,8 @@ export default function NuevaFacturaPage() {
     }
 
     const downloadInvoice = async (style: 'classic' | 'dian') => {
-        if (!currentInvoiceId) {
-            toast.error('No hay una factura emitida o guardada para descargar')
+        if (!invoiceId) {
+            toast.error('No hay una factura para descargar')
             setShowDownloadDialog(false)
             return
         }
@@ -679,7 +741,7 @@ export default function NuevaFacturaPage() {
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
             const endpoint = style === 'classic' ? 'invoices/download/classic' : 'invoices/download/dian'
-            const res = await fetch(`${apiBase}${endpoint}/${currentInvoiceId}`, {
+            const res = await fetch(`${apiBase}${endpoint}/${invoiceId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
@@ -694,7 +756,7 @@ export default function NuevaFacturaPage() {
             const url = window.URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `invoice-${style}-${currentInvoiceId}.pdf`
+            a.download = `invoice-${style}-${invoiceId}.pdf`
             document.body.appendChild(a)
             a.click()
             window.URL.revokeObjectURL(url)
@@ -707,127 +769,6 @@ export default function NuevaFacturaPage() {
         } finally {
             setIsDownloading(false)
             setShowDownloadDialog(false)
-        }
-    }
-
-    const handleEmitInvoice = async () => {
-        setIsEmitting(true)
-        const token = getToken();
-        const myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/json");
-        if (token) myHeaders.append("Authorization", `Bearer ${token}`);
-
-        try {
-            // Construir payload principal
-            const payload = {
-                orderId: Date.now(),
-                orderPrefix: getOrderPrefix(),
-                orderResolution: "RES-2026-001",
-                userId: getUserId(),
-                orderDate: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
-                orderReceiverNit: identificacion || "",
-                orderReceiverName: cliente || "",
-                orderReceiverAddress: direccion || "",
-                orderReceiverPhone: telefono || "",
-                orderTotalDesc: descuento || 0,
-                orderSubtotalBeforeTax: subtotal || 0,
-                orderTotalBeforeTax: subtotal || 0,
-                orderTotalTax: impuestos || 0,
-                orderTaxPer: items && items[0] ? String(items[0].impuesto).replace("%", "") : "0",
-                orderTotalAfterTax: total || 0,
-                orderAmountPaid: total || 0,
-                orderTotalAmountDue: total || 0,
-                note: notes,
-                cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
-                paymentForms: getPaymentForm(),
-                paymentMethods: getPaymentMethod(),
-                retencion: "4",
-                reteica: 2,
-                reteiva: 1,
-                autoretencion: 1,
-                ciiu: 2,
-                plazoPago: formaPago || "30",
-                vencimiento: "30",
-                status: "1",
-                items: items.map((it) => {
-                    const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                    const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
-                    const totalAfterDiscount = baseTotal - itemDescAmount
-                    const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
-                    const taxAmount = totalAfterDiscount * (taxPercent / 100)
-                    const finalAmount = totalAfterDiscount + taxAmount
-                    return {
-                        productId: it.productId || it.referencia || `ITEM-${Date.now()}`,
-                        itemCode: it.referencia || `ITEM-${Date.now()}`,
-                        quantity: 0,
-                        orderPrefix: getOrderPrefix(),
-                        orderResolution: "RES-2026-001",
-                        reference: it.referencia || "",
-                        itemName: it.descripcion || it.referencia || "",
-                        descripcion: it.descripcion || "",
-                        orderItemQuantity: Number(it.cantidad) || 0,
-                        orderItemPrice: Number(it.precio) || 0,
-                        orderItemIva: Number(taxAmount.toFixed(2)),
-                        orderItemDesc: Number(itemDescAmount.toFixed(2)),
-                        orderItemFinalAmount: Number(finalAmount.toFixed(2)),
-                    }
-                })
-            }
-
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
-            const res = await fetch(`${apiBase}invoices`, {
-                method: "POST",
-                headers: myHeaders,
-                body: JSON.stringify(payload),
-            })
-
-            if (!res.ok) {
-                const text = await res.text()
-                throw new Error(`HTTP ${res.status}: ${text}`)
-            }
-
-            const data = await res.json().catch(() => null)
-
-            toast.success(`Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? "-"})`)
-            console.log("Emit invoice response:", data)
-
-            // Store the invoice ID for downloads
-            setCurrentInvoiceId(data?.id ?? data?.invoiceId ?? null)
-
-            // Limpiar todos los inputs al emitir exitosamente
-            setCliente("")
-            setIdentificacion("")
-            setTelefono("")
-            setEmail("")
-            setDireccion("")
-            setFecha("")
-            setFormaPago("Contado")
-            setMedioPago("Efectivo")
-            setShowPaymentMethodDialog(false)
-            setMetodoPagoDetalle("")
-            setItems([
-                {
-                    id: Date.now(),
-                    referencia: "",
-                    precio: 0,
-                    descuento: 0,
-                    impuesto: "0%",
-                    descripcion: "",
-                    cantidad: 1,
-                    total: 0,
-                },
-            ])
-            setSignaturePreview(null)
-            const canvas = signatureCanvasRef.current
-            if (canvas) {
-                const ctx = canvas.getContext("2d")
-                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
-            }
-        } catch (error) {
-            console.error("Error emitiendo factura:", error)
-            toast.error("Ocurrió un error al emitir la factura. Revisa la consola para más detalles.")
-        } finally {
-            setIsEmitting(false)
         }
     }
 
@@ -874,9 +815,8 @@ export default function NuevaFacturaPage() {
 
     if (isMobile) {
         return (
-            <div className="min-h-screen bg-white flex flex-col">
-                <DashboardHeader />
-                <main className="flex-1 overflow-y-auto ">
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] bg-white overflow-y-auto">
                     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
                         <div className="max-w-md text-center bg-white rounded-xl shadow-sm p-6 text-gray-900">
                             <div className="flex justify-center mb-4">
@@ -897,62 +837,47 @@ export default function NuevaFacturaPage() {
                             </p>
                         </div>
                     </div>
-
-                </main>
-            </div >
-
+                </DialogContent>
+            </Dialog>
         )
     }
 
-
-
     return (
-
-        <div className="min-h-screen bg-white flex flex-col">
-            <DashboardHeader />
-            <main className="flex-1 overflow-y-auto p-9 ">
-
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] bg-white overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-bold">
+                        Editar Factura
+                    </DialogTitle>
+                </DialogHeader>
                 <motion.div
                     initial="hidden"
                     animate="visible"
                     variants={containerVariants}
-                    className="max-w-6xl mx-auto p-6 shadow-xl bg-white rounded-lg  text-gray-900"
+                    className="max-w-6xl mx-auto p-6 shadow-xl bg-white rounded-lg text-gray-900"
                 >
                     {/* Header */}
                     <motion.div variants={itemVariants} className="flex justify-between items-center mb-6">
                         <div className="flex items-center">
-                            <Link href="/">
-                                <Button variant="ghost" size="icon" className="mr-2">
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-                            </Link>
-                            <h1 className="text-2xl font-bold">Nueva Factura de Venta</h1>
+                            {/* Title removed as it's in DialogTitle */}
                         </div>
                         <div className="flex space-x-2">
-                            <Button variant="outline" className="flex items-center gap-1 hover:bg-[hsl(147,88%,41%)] shadow-lg  hover:text-white bg-white" onClick={handleSaveDraft} disabled={isSavingDraft}>
+                            <Button variant="outline" className="flex items-center gap-1 hover:bg-[hsl(147,88%,41%)] shadow-lg hover:text-white bg-white" onClick={handleSave} disabled={isSavingDraft}>
                                 <Save className="h-4 w-4" />
-                                {isSavingDraft ? "Guardando..." : "Guardar Borrador"}
+                                {isSavingDraft ? "Guardando..." : "Guardar Cambios"}
                             </Button>
-                            <Button variant="outline" className=" hidden items-center gap-1 hover:bg-[hsl(209,83%,23%)] shadow-lg hover:text-white  bg-white" onClick={handlePrint} disabled={isPrinting}>
+                            <Button variant="outline" className="hidden items-center gap-1 hover:bg-[hsl(209,83%,23%)] shadow-lg hover:text-white bg-white" onClick={handlePrint} disabled={isPrinting}>
                                 <Printer className="h-4 w-4" />
                                 {isPrinting ? "Imprimiendo..." : "Imprimir"}
                             </Button>
                             <Button
                                 variant="outline"
-                                className=" items-center flex gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
+                                className="items-center flex gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
                                 onClick={handleDownload}
-                                disabled={isDownloading || !currentInvoiceId}
+                                disabled={isDownloading || !invoiceId}
                             >
                                 <Download className="h-4 w-4" />
                                 {isDownloading ? "Descargando..." : "Descargar"}
-                            </Button>
-                            <Button
-                                className="bg-blue-900 hover:bg-[hsl(209,83%,23%)] hover:scale-95 text-white flex items-center gap-1"
-                                onClick={handleEmitInvoice}
-                                disabled={isEmitting}
-                            >
-                                <Send className="h-4 w-4" />
-                                {isEmitting ? "Emitiendo..." : "Emitir Factura"}
                             </Button>
                         </div>
                     </motion.div>
@@ -970,7 +895,6 @@ export default function NuevaFacturaPage() {
                                 onChange={(e) => setTipoDocumento(e.target.value)}
                             >
                                 <option>Factura de venta</option>
-                                {/*<option>Factura electrónica</option>*/}
                                 <option>Nota de venta</option>
                             </select>
                         </div>
@@ -1059,7 +983,7 @@ export default function NuevaFacturaPage() {
                         <div className="w-48">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">No.</span>
-                                <span className="text-blue-600">PlasticosLC-001</span>
+                                <span className="text-blue-600">{invoiceId}</span>
                                 <button className="text-gray-400 hover:text-gray-600">
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
@@ -1079,7 +1003,7 @@ export default function NuevaFacturaPage() {
                     <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm  text-gray-600 mb-1">Cliente *</label>
+                                <label className="block text-sm text-gray-600 mb-1">Cliente *</label>
                                 <div className="relative">
                                     <div className="relative">
                                         <input
@@ -1092,8 +1016,7 @@ export default function NuevaFacturaPage() {
                                                 setShowClientDropdown(true)
                                             }}
                                             onFocus={() => setShowClientDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowClientDropdown(false), 150)
-                                            }
+                                            onBlur={() => setTimeout(() => setShowClientDropdown(false), 150)}
                                         />
                                         <button
                                             className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -1816,8 +1739,7 @@ export default function NuevaFacturaPage() {
                     </DialogContent>
                 </Dialog>
 
-            </main>
-        </div>
-
+            </DialogContent>
+        </Dialog>
     )
 }

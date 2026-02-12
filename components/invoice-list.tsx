@@ -25,6 +25,13 @@ export function InvoiceList() {
         setLoading(true)
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
         const token = sessionStorage.getItem("token")
+        
+        if (!token) {
+          setError("Token de autenticación no encontrado")
+          setLoading(false)
+          return
+        }
+
         const res = await fetch(`${apiBase}invoices?page=${page}&limit=${limit}`, {
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -41,6 +48,7 @@ export function InvoiceList() {
               .map((n: string) => n[0])
               .join("")
               .toUpperCase()
+              .slice(0, 2)
             : "UN"
 
           return {

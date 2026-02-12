@@ -1,39 +1,47 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { TrendingUp, Clock, Wallet, ArrowUpRight } from "lucide-react"
 
-const summaryData = [
+interface ApiData {
+  overdue: { total: number; count: number; items: [] }
+  dueThisMonth: { total: number; count: number; items: [] }
+  averagePaymentDays: number
+  availableForPayment: { total: number; count: number; items: [] }
+}
+
+const summaryDataTemplate = [
   {
     label: "Vencidas",
-    amount: "31,211.00",
     icon: TrendingUp,
     color: "text-[hsl(0,84%,60%)]",
     months: ["Sep", "Oct", "Nov", "Dic"],
     chartPoints: [30, 50, 25, 65, 40, 75, 55, 80],
+    key: "overdue",
   },
   {
     label: "Vence proximo mes",
-    amount: "172,560.00",
     icon: ArrowUpRight,
     color: "text-[hsl(45,100%,60%)]",
     months: ["Sep", "Oct", "Nov", "Dic"],
     chartPoints: [20, 45, 60, 35, 55, 70, 45, 85],
+    key: "dueThisMonth",
   },
   {
     label: "Tiempo promedio de pago",
-    amount: "12",
     suffix: "dias",
     icon: Clock,
     color: "text-[hsl(0,0%,70%)]",
     months: ["Sep", "Oct", "Nov", "Dic"],
     chartPoints: [50, 40, 65, 30, 55, 45, 70, 60],
+    key: "averagePaymentDays",
   },
 ]
 
-const payoutData = {
+const payoutDataTemplate = {
   label: "Disponible para Pago",
-  amount: "214,390.00",
   expects: "Esperado",
+  key: "availableForPayment",
 }
 
 const avatars = ["CM", "AR", "MJ", "PV", "LD"]
@@ -76,6 +84,80 @@ function MiniChart({ points }: { points: number[] }) {
 }
 
 export function SummaryCards() {
+  const [data, setData] = useState<ApiData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchInvoiceData = async () => {
+      try {
+        setIsLoading(true)
+        const token = sessionStorage.getItem("token")
+        
+        if (!token) {
+          throw new Error("Token de autenticación no encontrado")
+        }
+
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}dashboard/invoices`
+        const response = await fetch(apiUrl, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+        
+        if (!response.ok) throw new Error("Error fetching invoice data")
+        const result = await response.json()
+        setData(result.data)
+        setError(null)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error desconocido")
+        setData(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchInvoiceData()
+  }, [])
+
+  // Formatear números como moneda
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString("es-ES", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  // Construir datos dinámicos con información de la API
+  const summaryData = summaryDataTemplate.map((template) => {
+    if (!data) return { ...template, amount: "0.00" }
+
+    if (template.key === "overdue") {
+      return { ...template, amount: formatCurrency(data.overdue.total) }
+    } else if (template.key === "dueThisMonth") {
+      return { ...template, amount: formatCurrency(data.dueThisMonth.total) }
+    } else if (template.key === "averagePaymentDays") {
+      return { ...template, amount: String(data.averagePaymentDays) }
+    }
+    return { ...template, amount: "0.00" }
+  })
+
+  const payoutData = data
+    ? {
+        ...payoutDataTemplate,
+        amount: formatCurrency(data.availableForPayment.total),
+      }
+    : { ...payoutDataTemplate, amount: "0.00" }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-500 bg-red-50 p-5">
+        <p className="text-red-700">Error al cargar datos: {error}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="grid grid-cols-1  md:grid-cols-2 xl:grid-cols-4 gap-4">
       {/* Metric Cards */}
@@ -134,7 +216,7 @@ export function SummaryCards() {
           </span>
         </div>
         {/* Payment methods */}
-        <div className="flex flex-wrap items-center gap-2 mt-1">
+        <div className="flex hidden flex-wrap items-center gap-2 mt-1">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
             <Wallet className="h-3.5 w-3.5 text-white" />
             <span className="text-white font-sans text-xs">Visa</span>
@@ -146,7 +228,7 @@ export function SummaryCards() {
             <span className="text-[hsl(0,0%,100%)] font-sans text-xs">#711221</span>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex hidden flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm">
             <span className="text-[hsl(0,0%,100%)] font-sans text-xs">Stripe</span>
           </div>
@@ -156,7 +238,7 @@ export function SummaryCards() {
         </div>
         <button
           type="button"
-          className="mt-auto self-end px-4 hover:scale-95 py-2 rounded-lg bg-[hsl(209,83%,23%)] text-[hsl(0,0%,100%)] text-sm font-medium font-sans hover:bg-[hsl(209,81%,33%)] transition-colors"
+          className="mt-auto hidden self-end px-4 hover:scale-95 py-2 rounded-lg bg-[hsl(209,83%,23%)] text-[hsl(0,0%,100%)] text-sm font-medium font-sans hover:bg-[hsl(209,81%,33%)] transition-colors"
         >
           Pagar ahora
         </button>
