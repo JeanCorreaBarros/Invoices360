@@ -2,7 +2,6 @@
 
 import React from "react"
 import { AuthProvider } from "@/lib/auth-context"
-import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { ThemeProvider } from "@/components/theme-provider"
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
@@ -10,7 +9,6 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <AuthProvider>
         {children}
-       
       </AuthProvider>
     </ThemeProvider>
   )
