@@ -5,14 +5,12 @@ export function PlcLoader() {
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-6">
         <div className="flex items-center justify-center">
-          <div className="relative w-32 h-32">
-            {/* Logo main circle */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[hsl(217,85%,50%)] to-[hsl(217,85%,35%)] flex items-center justify-center animate-pulse">
-              <span className="text-5xl font-bold text-white">PLC</span>
-            </div>
-
-            {/* Animated border circle */}
-            <div className="absolute inset-0 rounded-2xl border-4 border-transparent border-t-[hsl(217,85%,50%)] border-r-[hsl(217,85%,50%)] animate-spin"></div>
+          <div className="relative w-32 h-32 flex items-center justify-center">
+            <img
+              src="/Icon-plasticosLC.webp"
+              alt="Loading"
+              className="w-24 h-24 object-contain animate-pulse"
+            />
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { Plus, Edit, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import toast from "react-hot-toast"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 
 interface Supplier {
   id: string
@@ -150,7 +151,6 @@ function CreateSupplierModal({ isOpen, onClose, onSupplierCreated }: { isOpen: b
 
 function EditSupplierModal({ isOpen, supplier, onClose, onSupplierUpdated }: { isOpen: boolean; supplier: Supplier | null; onClose: () => void; onSupplierUpdated: () => void }) {
   const [loading, setLoading] = useState(false)
-  const [isLoadingData, setIsLoadingData] = useState(false)
   const [form, setForm] = useState<CreateModalState>({
     name: "",
     nit: "",
@@ -279,6 +279,51 @@ function EditSupplierModal({ isOpen, supplier, onClose, onSupplierUpdated }: { i
   )
 }
 
+// Componente de tarjeta para mobile
+function SupplierCard({ supplier, onEdit }: { supplier: Supplier; onEdit: (supplier: Supplier) => void }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900">{supplier.name}</h3>
+          <p className="text-sm text-gray-500 mt-1">NIT: {supplier.nit}</p>
+        </div>
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-medium ${supplier.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+            }`}
+        >
+          {supplier.active ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <div>
+          <p className="text-xs text-gray-500">Email</p>
+          <p className="text-sm text-gray-900">{supplier.email}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Teléfono</p>
+          <p className="text-sm text-gray-900">{supplier.phone}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Dirección</p>
+          <p className="text-sm text-gray-900">{supplier.address}</p>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t">
+        <button
+          onClick={() => onEdit(supplier)}
+          className="w-full flex items-center justify-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600 border border-blue-200"
+        >
+          <Edit className="h-4 w-4" />
+          <span className="text-sm font-medium">Editar</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ProveedoresPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -314,17 +359,14 @@ export default function ProveedoresPage() {
     fetchSuppliers()
   }, [])
 
-  // Resetear página al buscar
   useEffect(() => {
     setPage(1)
   }, [searchTerm])
 
-  // Función para normalizar texto (quita tildes y pasa a minúsculas)
   function normalize(str: string) {
     return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
   }
 
-  // Filtrar proveedores basados en búsqueda
   const filteredSuppliers = suppliers.filter((supplier) => {
     const search = normalize(searchTerm)
     return (
@@ -344,16 +386,49 @@ export default function ProveedoresPage() {
     setIsEditModalOpen(true)
   }
 
+  // Generar números de página para mostrar
+  const getPageNumbers = () => {
+    const pages = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (page <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i)
+        pages.push("...")
+        pages.push(totalPages)
+      } else if (page >= totalPages - 2) {
+        pages.push(1)
+        pages.push("...")
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        pages.push("...")
+        pages.push(page - 1)
+        pages.push(page)
+        pages.push(page + 1)
+        pages.push("...")
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <DashboardHeader />
       <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">Proveedores</h1>
-            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold">Proveedores</h1>
+            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-2 w-full sm:w-auto">
               <Plus className="h-5 w-5" />
-              Nuevo Proveedor
+              <span className="hidden sm:inline">Nuevo Proveedor</span>
+              <span className="sm:hidden">Nuevo</span>
             </Button>
           </div>
 
@@ -368,18 +443,16 @@ export default function ProveedoresPage() {
           ) : (
             <>
               {/* Search */}
-              <div className="bg-white shadow-xl p-4 rounded-lg mb-6">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="relative rounded-lg w-full">
-                    <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Buscar proveedor..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full bg-white pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-bivoo-purple focus:outline-none text-sm sm:text-base"
-                    />
-                  </div>
+              <div className="bg-white p-4 rounded-lg mb-6">
+                <div className="relative rounded-lg w-full">
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Buscar proveedor..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full shadow-lg bg-white pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
+                  />
                 </div>
               </div>
 
@@ -388,95 +461,116 @@ export default function ProveedoresPage() {
                   <p className="text-gray-500">No hay proveedores que coincidan con tu búsqueda</p>
                 </div>
               ) : (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Nombre</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">NIT</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Teléfono</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Dirección</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Estado</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {paginatedSuppliers.map((supplier) => (
-                        <tr key={supplier.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-medium">{supplier.name}</td>
-                          <td className="px-6 py-4 text-sm">{supplier.nit}</td>
-                          <td className="px-6 py-4 text-sm">{supplier.email}</td>
-                          <td className="px-6 py-4 text-sm">{supplier.phone}</td>
-                          <td className="px-6 py-4 text-sm">{supplier.address}</td>
-                          <td className="px-6 py-4 text-sm">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${supplier.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                              {supplier.active ? "Activo" : "Inactivo"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm">
-                            <button
-                              onClick={() => handleEditClick(supplier)}
-                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Editar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-gray-500">
-                    Mostrando {(page - 1) * ITEMS_PER_PAGE + 1} a {Math.min(page * ITEMS_PER_PAGE, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.max(1, page - 1))}
-                      disabled={page === 1}
-                      className="flex items-center gap-1"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Anterior
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                        <Button
-                          key={p}
-                          variant={page === p ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setPage(p)}
-                        >
-                          {p}
-                        </Button>
-                      ))}
+                <>
+                  {/* Desktop Table */}
+                  <div className="hidden md:block bg-white rounded-lg shadow-xl overflow-hidden mb-6">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Nombre</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">NIT</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Teléfono</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Dirección</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Estado</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {paginatedSuppliers.map((supplier) => (
+                            <tr key={supplier.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 font-medium text-gray-900">{supplier.name}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{supplier.nit}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{supplier.email}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{supplier.phone}</td>
+                              <td className="px-6 py-4 text-sm text-gray-700">{supplier.address}</td>
+                              <td className="px-6 py-4 text-sm">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${supplier.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                                    }`}
+                                >
+                                  {supplier.active ? "Activo" : "Inactivo"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm">
+                                <button
+                                  onClick={() => handleEditClick(supplier)}
+                                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  Editar
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.min(totalPages, page + 1))}
-                      disabled={page === totalPages}
-                      className="flex items-center gap-1"
-                    >
-                      Siguiente
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
+
+                  {/* Mobile Cards */}
+                  <div className="md:hidden space-y-3 mb-6">
+                    {paginatedSuppliers.map((supplier) => (
+                      <SupplierCard key={supplier.id} supplier={supplier} onEdit={handleEditClick} />
+                    ))}
+                  </div>
+
+                  {/* Paginación */}
+                  {filteredSuppliers.length > 0 && (
+                    <div className="bg-white rounded-lg shadow-lg p-4">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-sm text-gray-600 text-center sm:text-left">
+                          Mostrando {(page - 1) * ITEMS_PER_PAGE + 1} a{" "}
+                          {Math.min(page * ITEMS_PER_PAGE, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPage(page - 1)}
+                            disabled={page === 1}
+                            className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+
+                          <div className="flex items-center gap-1">
+                            {getPageNumbers().map((pageNum, idx) =>
+                              pageNum === "..." ? (
+                                <span key={`ellipsis-${idx}`} className="px-3 py-2 text-gray-500">
+                                  ...
+                                </span>
+                              ) : (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setPage(pageNum as number)}
+                                  className={`min-w-[40px] px-3 py-2 rounded-lg font-medium transition-colors ${page === pageNum ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-700"
+                                    }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              )
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => setPage(page + 1)}
+                            disabled={page === totalPages}
+                            className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
         </div>
       </main>
-
+      <MobileBottomNav />
       <CreateSupplierModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSupplierCreated={fetchSuppliers} />
       <EditSupplierModal isOpen={isEditModalOpen} supplier={selectedSupplier} onClose={() => setIsEditModalOpen(false)} onSupplierUpdated={fetchSuppliers} />
     </div>

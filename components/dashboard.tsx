@@ -6,6 +6,8 @@ import { InvoiceList } from "./invoice-list"
 import { LoginPage } from "./login-page"
 import { PlcLoader } from "./plc-loader"
 import { useAuth } from "@/lib/auth-context"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+
 // MobileBottomNav is provided globally by the app layout
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -48,7 +50,7 @@ export function Dashboard() {
         {/* Invoice list with detail */}
         <InvoiceList />
       </main>
-
+      <MobileBottomNav />
       {/* Mobile bottom navigation is provided by layout */}
     </div>
   )

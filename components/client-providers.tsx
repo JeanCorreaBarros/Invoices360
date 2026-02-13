@@ -10,7 +10,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <AuthProvider>
         {children}
-        <MobileBottomNav />
+       
       </AuthProvider>
     </ThemeProvider>
   )
