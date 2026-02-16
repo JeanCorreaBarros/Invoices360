@@ -122,6 +122,12 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
     const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
     const [metodoPagoDetalle, setMetodoPagoDetalle] = useState("")
     const [tipoDocumento, setTipoDocumento] = useState("Factura de venta")
+    const [orderPrefix, setOrderPrefix] = useState("FV")
+    const [invoiceStatus, setInvoiceStatus] = useState("DRAFT")
+    const [retencion, setRetencion] = useState("0")
+    const [reteica, setReteica] = useState("0")
+    const [reteiva, setReteiva] = useState("0")
+    const [autoretencion, setAutoretencion] = useState("0")
     const [notes, setNotes] = useState("Notas Internas...")
     const [clientsList, setClientsList] = useState<any[]>([])
     const [clientsLoading, setClientsLoading] = useState(false)
@@ -203,10 +209,44 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         }
     };
 
+    // Función helper para obtener el display del status
+    const getStatusDisplay = () => {
+        switch (invoiceStatus) {
+            case "DRAFT":
+                return { label: "Borrador", color: "text-yellow-600 bg-yellow-100" };
+            case "SENT":
+                return { label: "Enviada", color: "text-blue-600 bg-blue-100" };
+            case "PENDING":
+                return { label: "Pendiente", color: "text-orange-600 bg-orange-100" };
+            case "PAID":
+                return { label: "Pagada", color: "text-green-600 bg-green-100" };
+            case "OVERDUE":
+                return { label: "Vencida", color: "text-red-600 bg-red-100" };
+            default:
+                return { label: "Desconocido", color: "text-gray-600 bg-gray-100" };
+        }
+    };
+
     // Función helper para obtener el código de forma de pago
     const getPaymentForm = (): number => {
         const form = paymentFormsOptions.find(f => f.label === formaPago);
         return form?.value || 1;
+    };
+
+      // Función helper para obtener el plazo de pago
+    const getPlazoPago = (): string => {
+        switch (formaPago) {
+            case "Contado":
+                return "0";
+            case "Crédito 30 días":
+                return "30";
+            case "Crédito 60 días":
+                return "60";
+            case "Crédito 90 días":
+                return "90";
+            default:
+                return "0";
+        }
     };
 
     // Función helper para obtener el código de medio de pago
@@ -328,24 +368,34 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             setFecha(invoice.orderDate ? invoice.orderDate.split("T")[0] : "")
             setNotes(invoice.note || "")
             setTipoDocumento(invoice.orderPrefix === "NV" ? "Nota de venta" : "Factura de venta")
+            setOrderPrefix(invoice.orderPrefix || "FV")
+            setInvoiceStatus(invoice.status || "DRAFT")
             // Set payment forms based on codes
             const paymentForm = paymentFormsOptions.find(f => f.value === invoice.paymentForms);
             setFormaPago(paymentForm?.label || "Contado")
             const paymentMethod = paymentMethodsOptions.find(m => m.value === invoice.paymentMethods);
             setMedioPago(paymentMethod?.label || "Efectivo")
+            setVendedor(invoice.sellerId || "")
 
             // Mapear detalles a items
-            const mappedItems = (invoice.details || invoice.items || []).map((detail: any, idx: number) => ({
-                id: detail.id || idx,
-                referencia: detail.itemCode || detail.reference || "",
-                precio: Number(detail.orderItemPrice) || 0,
-                descuento: Number(detail.orderItemDesc) || 0,
-                impuesto: `${Number(detail.orderItemIva) || 0}%`,
-                descripcion: detail.itemName || detail.descripcion || "",
-                cantidad: Number(detail.orderItemQuantity) || 0,
-                total: Number(detail.orderItemFinalAmount) || 0,
-                productId: detail.productId || "",
-            }))
+            const mappedItems = (invoice.details || invoice.items || []).map((detail: any, idx: number) => {
+                const baseTotal = (Number(detail.orderItemPrice) || 0) * (Number(detail.orderItemQuantity) || 0)
+                const discountAmount = Number(detail.orderItemDesc) || 0
+                const totalAfterDiscount = baseTotal - discountAmount
+                const taxAmount = Number(detail.orderItemIva) || 0
+                const taxPercent = totalAfterDiscount > 0 ? (taxAmount / totalAfterDiscount) * 100 : 0
+                return {
+                    id: detail.id || idx,
+                    referencia: detail.itemName ? `${detail.itemName} (${detail.itemCode || detail.reference})` : (detail.itemCode || detail.reference || ""),
+                    precio: Number(detail.orderItemPrice) || 0,
+                    descuento: discountAmount,
+                    impuesto: `${Math.round(taxPercent)}%`,
+                    descripcion: detail.itemName || detail.descripcion || "",
+                    cantidad: Number(detail.orderItemQuantity) || 0,
+                    total: Number(detail.orderItemFinalAmount) || 0,
+                    productId: detail.productId || "",
+                }
+            })
             setItems(mappedItems.length > 0 ? mappedItems : [{
                 id: Date.now(),
                 referencia: "",
@@ -370,7 +420,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
 
         items.forEach((item) => {
             const itemSubtotal = item.precio * item.cantidad
-            const itemDescuento = itemSubtotal * (item.descuento / 100)
+            const itemDescuento = Math.min(item.descuento || 0, itemSubtotal)
             totalDescuentos += itemDescuento
 
             const itemTotal = itemSubtotal - itemDescuento
@@ -412,17 +462,17 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
             paymentForms: getPaymentForm(),
             paymentMethods: getPaymentMethod(),
-            retencion: "0",
-            reteica: 0,
-            reteiva: 0,
-            autoretencion: 0,
+            retencion: retencion || "0",
+            reteica: Number(reteica) || 0,
+            reteiva: Number(reteiva) || 0,
+            autoretencion: Number(autoretencion) || 0,
             ciiu: 0,
-            plazoPago: formaPago || "30",
+            plazoPago: getPlazoPago(),
             vencimiento: "30",
             status: "1",
             items: items.map((it) => {
                 const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
+                const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
                 const totalAfterDiscount = baseTotal - itemDescAmount
                 const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
                 const taxAmount = totalAfterDiscount * (taxPercent / 100)
@@ -445,7 +495,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             })
         }
         console.log("📋 Payload en tiempo real:", payload)
-    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes, invoiceId])
+    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes, invoiceId, retencion, reteica, reteiva, autoretencion])
 
     const addItem = () => {
         setItems([
@@ -474,7 +524,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 if (field === "referencia" && typeof value === "object" && value !== null && value.__selectedProduct) {
                     return {
                         ...item,
-                        referencia: value.productSku,
+                        referencia: `${value.productName} (${value.productSku})`,
                         productId: value.productId,
                         descripcion: value.productName,
                         precio: value.precio,
@@ -488,9 +538,9 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     const clamped = clamp(n, -1e12, 1e12);
                     newValue = Math.round(clamped * 100) / 100;
                 } else if (field === "descuento") {
-                    // discount is a percent: force between 0 and 100
+                    // discount is a fixed amount: allow positive numbers
                     const n = Number(value) || 0;
-                    const clamped = clamp(n, 0, 100);
+                    const clamped = clamp(n, 0, 1e12);
                     newValue = Math.round(clamped * 100) / 100;
                 } else if (field === "cantidad") {
                     // cantidad should be an integer and non-negative
@@ -515,8 +565,11 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
 
     const calculateItemTotal = (item: InvoiceItem) => {
         const baseTotal = item.precio * item.cantidad
-        const totalConDescuento = baseTotal * (1 - (item.descuento || 0) / 100)
-        return totalConDescuento
+        const discount = Math.min(item.descuento || 0, baseTotal)
+        const totalConDescuento = baseTotal - discount
+        const taxPercent = Number(String(item.impuesto || "0").replace("%", "")) / 100
+        const taxAmount = totalConDescuento * taxPercent
+        return totalConDescuento + taxAmount
     }
 
     const handleMedioPagoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -659,6 +712,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 orderReceiverName: cliente || "",
                 orderReceiverAddress: direccion || "",
                 orderReceiverPhone: telefono || "",
+                 orderReceiverEmail: email || "",
                 orderTotalDesc: descuento || 0,
                 orderSubtotalBeforeTax: subtotal || 0,
                 orderTotalBeforeTax: subtotal || 0,
@@ -667,21 +721,22 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 orderTotalAfterTax: total || 0,
                 orderAmountPaid: total || 0,
                 orderTotalAmountDue: total || 0,
+                sellerId: vendedor || "",
                 note: notes,
                 cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
                 paymentForms: getPaymentForm(),
                 paymentMethods: getPaymentMethod(),
-                retencion: "4",
-                reteica: 2,
-                reteiva: 1,
-                autoretencion: 1,
+                retencion: retencion || "0",
+                reteica: Number(reteica) || 0,
+                reteiva: Number(reteiva) || 0,
+                autoretencion: Number(autoretencion) || 0,
                 ciiu: 2,
-                plazoPago: formaPago || "30",
+                plazoPago: getPlazoPago(),
                 vencimiento: "30",
                 status: "draft",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                    const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
+                    const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
                     const totalAfterDiscount = baseTotal - itemDescAmount
                     const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
                     const taxAmount = totalAfterDiscount * (taxPercent / 100)
@@ -740,8 +795,8 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         setIsDownloading(true)
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
-            const endpoint = style === 'classic' ? 'invoices/download/classic' : 'invoices/download/dian'
-            const res = await fetch(`${apiBase}${endpoint}/${invoiceId}`, {
+            const endpoint = style === 'classic' ? 'invoice-documents' : 'invoice-documents'
+            const res = await fetch(`${apiBase}${endpoint}/${invoiceId}/pdf${style !== 'classic' ? '?style=dian' : ''}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
@@ -946,7 +1001,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                             {logoPreview || company?.logo ? (
                                 <div className="relative w-full h-full">
                                     <Image
-                                        src={logoPreview || company?.logo || "/placeholder.svg"}
+                                        src={logoPreview || (company?.logo ? `https://plasticoslc.com${company.logo}` : "/placeholder.svg")}
                                         alt="Logo de la empresa"
                                         fill
                                         className="object-contain bg-white"
@@ -983,18 +1038,20 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                         <div className="w-48">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">No.</span>
-                                <span className="text-blue-600">{invoiceId}</span>
+                               <span className="text-blue-600">{orderPrefix}-{invoiceId}</span>
                                 <button className="text-gray-400 hover:text-gray-600">
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
                             </div>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="items-center hidden gap-2 mb-2">
                                 <span className="font-semibold">Consecutivo:</span>
                                 <span>001</span>
                             </div>
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">Estado:</span>
-                                <span className="text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full text-xs">Borrador</span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusDisplay().color}`}>
+                                    {getStatusDisplay().label}
+                                </span>
                             </div>
                         </div>
                     </motion.div>
@@ -1238,7 +1295,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                         <th className="text-left py-2 w-10">#</th>
                                         <th className="text-left py-2">Referencia</th>
                                         <th className="text-left py-2">Precio</th>
-                                        <th className="text-left py-2">Desc. %</th>
+                                        <th className="text-left py-2">Descuento</th>
                                         <th className="text-left py-2">Impuesto</th>
                                         <th className="text-left py-2">Descripción</th>
                                         <th className="text-left py-2">Cantidad</th>
@@ -1320,7 +1377,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                                     className="border bg-white rounded px-2 py-1 w-full"
                                                     value={item.descuento}
                                                     min={0}
-                                                    max={100}
+                                                    max={1000000000000}
                                                     step={0.01}
                                                     onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
                                                 />
@@ -1402,7 +1459,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     {/* Signature and Terms */}
                     <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                         <div
-                            className="border-2 border-dashed border-gray-300 h-32 flex items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
+                            className="border-2  border-dashed border-gray-300 h-32 flex items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
                             onClick={() => signatureInputRef.current?.click()}
                         >
                             {signaturePreview ? (
@@ -1697,6 +1754,57 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                 </div>
                             </DialogContent>
                         </Dialog>
+                    </motion.div>
+
+                    {/* Retenciones */}
+                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                        <h3 className="font-semibold mb-4">Retenciones</h3>
+                        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                            <div>
+                                <Label htmlFor="retencion" className="text-sm text-gray-600 mb-1 block">Retención (%)</Label>
+                                <Input
+                                    id="retencion"
+                                    type="number"
+                                    placeholder="0"
+                                    value={retencion}
+                                    onChange={(e) => setRetencion(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="reteica" className="text-sm text-gray-600 mb-1 block">Rete ICA (%)</Label>
+                                <Input
+                                    id="reteica"
+                                    type="number"
+                                    placeholder="0"
+                                    value={reteica}
+                                    onChange={(e) => setReteica(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="reteiva" className="text-sm text-gray-600 mb-1 block">Rete IVA (%)</Label>
+                                <Input
+                                    id="reteiva"
+                                    type="number"
+                                    placeholder="0"
+                                    value={reteiva}
+                                    onChange={(e) => setReteiva(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="autoretencion" className="text-sm text-gray-600 mb-1 block">Autoretencion (%)</Label>
+                                <Input
+                                    id="autoretencion"
+                                    type="number"
+                                    placeholder="0"
+                                    value={autoretencion}
+                                    onChange={(e) => setAutoretencion(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                        </div>
                     </motion.div>
 
                     {/* Notes */}

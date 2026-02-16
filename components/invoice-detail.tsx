@@ -2,8 +2,16 @@
 
 import { useState } from "react"
 import type { Invoice } from "@/lib/invoice-data"
-import { Edit3, Trash2, Send, ArrowUpRight } from "lucide-react"
+import { Edit3, Trash2, Send, ArrowUpRight, Loader2, MoreVertical } from "lucide-react"
 import { InvoiceEditDialog } from "./invoice-edit-dialog"
+import { toast } from "react-hot-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface InvoiceDetailProps {
   invoice: Invoice
@@ -11,58 +19,152 @@ interface InvoiceDetailProps {
 
 export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState(invoice.status)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+  const statusToApi = {
+    "Draft": "DRAFT",
+    "Sent": "SENT",
+    "Unsent": "PENDING",
+    "Partial": "PARTIAL",
+    "Paid": "PAID",
+    "Cancelled": "CANCELLED",
+    "Overdue": "OVERDUE",
+    "Viewed": "PENDING"
+  }
+
+  const statusConfig = {
+    "Unsent": { label: "Pendiente", bg: "bg-yellow-100", text: "text-yellow-700" },
+    "Viewed": { label: "Vista", bg: "bg-blue-100", text: "text-blue-700" },
+    "Paid": { label: "Pagada", bg: "bg-green-100", text: "text-green-700" },
+    "Draft": { label: "Borrador", bg: "bg-gray-200", text: "text-gray-700" },
+    "Sent": { label: "Enviada", bg: "bg-emerald-100", text: "text-emerald-700" },
+    "Partial": { label: "Pago Parcial", bg: "bg-orange-100", text: "text-orange-700" },
+    "Cancelled": { label: "Anulada", bg: "bg-red-100", text: "text-red-700" },
+    "Overdue": { label: "Vencida", bg: "bg-red-100", text: "text-red-700" }
+  }
+
+  const handleStatusChange = async (newStatus: Invoice['status']) => {
+    setIsUpdatingStatus(true)
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
+      const token = sessionStorage.getItem("token")
+
+      const response = await fetch(`${apiBase}invoices/${invoice.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status: statusToApi[newStatus]
+        })
+      })
+
+      if (response.ok) {
+        setSelectedStatus(newStatus)
+        toast.success('Estado actualizado exitosamente')
+      } else {
+        toast.error('Error al actualizar el estado')
+      }
+    } catch (error) {
+      toast.error('Error de red al actualizar el estado')
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const handleSendEmail = async () => {
+    setIsSending(true)
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
+      const response = await fetch(`${apiBase}invoice-documents/${invoice.id}/email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: "jeancorrea1000@gmail.com",
+          style: "modern"
+        })
+      })
+      const data = await response.json()
+      if (data.ok) {
+        toast.success(data.message || 'Factura enviada exitosamente')
+      } else {
+        toast.error(data.message || 'Error al enviar la factura')
+      }
+    } catch (error) {
+      toast.error('Error de red')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const currentStatus = statusConfig[selectedStatus] || statusConfig["Overdue"]
+
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-xl md:rounded-2xl border border-border bg-card shadow-sm">
+
       {/* Header */}
-      <div className="p-5 pb-4 border-b border-border">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
+      <div className="p-4 md:p-5 pb-3 md:pb-4 border-b border-border bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl md:rounded-t-2xl">
+        <div className="flex flex-col gap-3">
+
+          {/* Primera fila: Número, Estado y Menú mobile */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-sans">Detalle factura</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold  font-sans">#{invoice.number}</h2>
-              <span
-                className={`text-xs px-2.5 py-1 rounded-full font-sans font-medium ${
-                  invoice.status === "Unsent"
-                    ? "bg-[hsl(45,100%,50%,0.15)] text-[hsl(45,100%,60%)]"
-                    : invoice.status === "Viewed"
-                      ? "bg-[hsl(200,60%,50%,0.15)] text-[hsl(200,60%,60%)]"
-                      : invoice.status === "Paid"
-                        ? "bg-[hsl(90,100%,50%,0.15)] text-[hsl(90,100%,50%)]"
-                        : invoice.status === "Draft"
-                          ? "bg-[hsl(228,10%,30%,0.5)] text-muted-foreground"
-                          : "bg-[hsl(0,84%,60%,0.15)] text-[hsl(0,84%,60%)]"
-                }`}
-              >
-                {invoice.status === "Unsent"
-                  ? "No enviada"
-                  : invoice.status === "Viewed"
-                    ? "Vista"
-                    : invoice.status === "Paid"
-                      ? "Pagada"
-                      : invoice.status === "Draft"
-                        ? "Borrador"
-                        : "Vencida"}
+              <h2 className="text-lg md:text-xl font-bold font-sans">#{invoice.number}</h2>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-sans font-medium ${currentStatus.bg} ${currentStatus.text}`}>
+                {currentStatus.label}
               </span>
             </div>
+
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 rounded-lg hover:bg-white/50 transition-colors">
+                    <MoreVertical className="h-5 w-5 text-gray-600" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Editar factura
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSendEmail} disabled={isSending}>
+                    {isSending
+                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      : <Send className="h-4 w-4 mr-2" />
+                    }
+                    {isSending ? "Enviando..." : "Enviar por email"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
+
+          {/* Segunda fila: Empresa y Cliente */}
+          <div className="grid grid-cols-2 gap-3 md:flex md:gap-6">
             <div className="flex flex-col">
-              <span className="text-xs  font-sans">Empresa</span>
-              <span className="text-sm font-semibold font-sans flex items-center gap-1.5">
+              <span className="text-xs text-gray-600 font-sans mb-0.5">Empresa</span>
+              <span className="text-sm font-semibold font-sans text-gray-900 truncate">
                 {invoice.company}
               </span>
             </div>
-            <div className="flex flex-col items-start sm:items-end">
-              <span className="text-xs  font-sans">Cliente</span>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full  bg-[hsl(226,79%,22%)] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-white font-sans">
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-600 font-sans mb-0.5">Cliente</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full bg-[hsl(226,79%,22%)] flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-bold text-white font-sans">
                     {invoice.customerAvatar}
                   </span>
                 </div>
-                <span className="text-sm font-medium  font-sans">
+                <span className="text-sm font-medium font-sans text-gray-900 truncate">
                   {invoice.customer}
                 </span>
               </div>
@@ -71,82 +173,122 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         </div>
       </div>
 
-      {/* Line items */}
-      <div className="p-5">
-        <div className="flex flex-col gap-3">
-          {invoice.lineItems.map((item) => (
+      {/* Body */}
+      <div className="p-4 md:p-5">
+
+        {/* Line items */}
+        <div className="flex flex-col gap-2 md:gap-3">
+          {invoice.lineItems.map((item, index) => (
             <div
-              key={item.description}
-              className="flex items-center justify-between p-4 hover:scale-95 cursor-pointer rounded-xl bg-[#295582] "
+              key={index}
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 rounded-lg md:rounded-xl bg-gradient-to-r from-[#295582] to-[#1e4166] hover:shadow-md transition-all"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-[hsl(0,0%,55%)] text-xs font-sans">$</span>
-                <span className="text-sm font-semibold text-[hsl(0,0%,100%)] font-sans">
+              <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                <span className="text-gray-300 text-xs font-sans">$</span>
+                <span className="text-base md:text-lg font-bold text-white font-sans">
                   {item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
-                <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <ArrowUpRight className="h-3.5 w-3.5 text-gray-400" />
               </div>
-              <span className="text-sm text-white font-sans">{item.description}</span>
+              <span className="text-sm text-white/90 font-sans line-clamp-2 sm:line-clamp-1">
+                {item.description}
+              </span>
             </div>
           ))}
         </div>
 
         {/* Totals */}
-        <div className="mt-6 pt-4 border-t border-border">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col">
-              <span className="text-xs  font-sans">Sub Total</span>
-              <span className="text-sm font-semibold  font-sans">
-                {invoice.subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        <div className="mt-5 md:mt-6 pt-4 border-t border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+            <div className="flex justify-between sm:flex-col p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg sm:rounded-none">
+              <span className="text-xs text-gray-600 font-sans">Sub Total</span>
+              <span className="text-sm md:text-base font-semibold text-gray-900 font-sans">
+                ${invoice.subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs  font-sans">Total</span>
-              <span className="text-sm font-semibold  font-sans">
-                {invoice.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            <div className="flex justify-between sm:flex-col p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg sm:rounded-none">
+              <span className="text-xs text-gray-600 font-sans">Total</span>
+              <span className="text-sm md:text-base font-semibold text-gray-900 font-sans">
+                ${invoice.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs  font-sans">Balance Pendiente</span>
-              <span className="text-sm font-bold  font-sans">
-                {invoice.balanceDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            <div className="flex justify-between sm:flex-col p-3 sm:p-0 bg-blue-50 sm:bg-transparent rounded-lg sm:rounded-none">
+              <span className="text-xs text-blue-700 font-sans font-medium">Balance Pendiente</span>
+              <span className="text-base md:text-lg font-bold text-blue-900 font-sans">
+                ${invoice.balanceDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="mt-6 flex items-center justify-between">
+        {/* Actions — solo desktop */}
+        <div className="mt-5 md:mt-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsEditDialogOpen(true)}
-              className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(0,0%,90%)] hover:bg-secondary transition-colors"
+              className="p-2 rounded-lg text-gray-600 hidden lg:flex hover:text-gray-900 hover:bg-gray-100 transition-colors"
               aria-label="Editar factura"
             >
               <Edit3 className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="p-2 rounded-lg hidden text-muted-foreground hover:text-[hsl(0,84%,60%)] hover:bg-[hsl(0,84%,60%,0.1)] transition-colors"
+              className="p-2 rounded-lg hidden text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
               aria-label="Eliminar factura"
             >
               <Trash2 className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="p-2 rounded-lg text-muted-foreground hover:text-[hsl(200,60%,60%)] hover:bg-[hsl(200,60%,60%,0.1)] transition-colors"
+              onClick={handleSendEmail}
+              disabled={isSending}
+              className={`p-2 rounded-lg  text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 ${isSending ? 'px-3' : ''}`}
               aria-label="Enviar factura"
             >
-              <Send className="h-4 w-4" />
+              {isSending ? (
+                <span className="flex items-center gap-1 text-xs">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando
+                </span>
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </button>
           </div>
-          <button
-            type="button"
-            className="px-5 py-2.5 rounded-lg bg-[hsl(209,83%,23%)] text-[hsl(0,0%,100%)] text-sm font-semibold font-sans hover:bg-[hsl(209,82%,28%)] hover:scale-95 transition-colors"
-          >
-            Pagar ahora
-          </button>
+          <Select value={selectedStatus} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
+            <SelectTrigger className="w-[180px] hidden lg:flex bg-[hsl(209,83%,23%)] text-white border-none">
+              <SelectValue placeholder="Seleccionar estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Draft">Borrador</SelectItem>
+              <SelectItem value="Sent">Enviada</SelectItem>
+              <SelectItem value="Unsent">Pendiente</SelectItem>
+              <SelectItem value="Partial">Pago Parcial</SelectItem>
+              <SelectItem value="Paid">Pagada</SelectItem>
+              <SelectItem value="Cancelled">Anulada</SelectItem>
+              <SelectItem value="Overdue">Vencida</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Selector de estado — solo mobile */}
+        <div className="mt-4 flex md:hidden">
+          <label className="text-xs text-gray-600 hidden font-sans mb-1.5 ">Cambiar Estado</label>
+          <Select value={selectedStatus} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
+            <SelectTrigger className="w-full h-11 bg-[hsl(209,83%,23%)] text-white border-none">
+              <SelectValue placeholder="Seleccionar estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Draft">Borrador</SelectItem>
+              <SelectItem value="Sent">Enviada</SelectItem>
+              <SelectItem value="Unsent">Pendiente</SelectItem>
+              <SelectItem value="Partial">Pago Parcial</SelectItem>
+              <SelectItem value="Paid">Pagada</SelectItem>
+              <SelectItem value="Cancelled">Anulada</SelectItem>
+              <SelectItem value="Overdue">Vencida</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

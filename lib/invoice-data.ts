@@ -9,7 +9,7 @@ export interface Invoice {
   company: string
   customer: string
   customerAvatar: string
-  status: "Unsent" | "Viewed" | "Paid" | "Draft" | "Overdue"
+  status: "Unsent" | "Viewed" | "Paid" | "Draft" | "Overdue" | "Sent" | "Partial" | "Cancelled"
   amount: number
   daysAgo: string
   lineItems: InvoiceLineItem[]

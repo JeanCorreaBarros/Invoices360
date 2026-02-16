@@ -39,18 +39,14 @@ export function LoginPage() {
             </div>
 
             <div className="relative z-10 text-center">
-              {/* Logo */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="w-28 h-28 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
-                  <span className="text-5xl font-bold">PLC</span>
-                </div>
-              </div>
-
+          
               {/* Content */}
-              <h2 className="text-3xl font-bold mb-6"> Bienvenido a PlasticosLC</h2>
-              <p className="text-lg mb-8">
-                Gestiona tus facturas, clientes y productos de manera fácil y rápida.
-              </p>
+              <h2 className="text-3xl font-bold mb-1"> Bienvenido a PlasticosLC</h2>
+              <img
+                src="/Logo-PlasticosLC.png"
+                alt="Logo PlasticosLC"
+                className="mx-auto mb-8 w-88 h-88 object-contain"
+              />
 
 
               {/* Navigation Dots */}

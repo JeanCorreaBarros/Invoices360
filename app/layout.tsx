@@ -20,8 +20,8 @@ export const metadata: Metadata = {
     title: "PlasticosLC",
   },
   icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    icon: "/icon.ico",
+    apple: "/icon.ico",
   },
 }
 

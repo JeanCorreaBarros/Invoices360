@@ -5,10 +5,10 @@ import { type Invoice } from "@/lib/invoice-data"
 import { InvoiceDetail } from "./invoice-detail"
 import { Search, Filter, MoreVertical, ChevronDown, X } from "lucide-react"
 
-type TabFilter = "all" | "draft" | "unpaid" | "paid"
+type TabFilter = "all" | "draft" | "pending" | "send" | "paid"
 
 export function InvoiceList() {
-  const [activeTab, setActiveTab] = useState<TabFilter>("unpaid")
+  const [activeTab, setActiveTab] = useState<TabFilter>("pending")
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -25,7 +25,7 @@ export function InvoiceList() {
         setLoading(true)
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
         const token = sessionStorage.getItem("token")
-        
+
         if (!token) {
           setError("Token de autenticación no encontrado")
           setLoading(false)
@@ -57,7 +57,7 @@ export function InvoiceList() {
             company: "Plásticos LC",
             customer: inv.orderReceiverName || "N/A",
             customerAvatar: initials,
-            status: "Unsent" as const,
+            status: (inv.status === "DRAFT" ? "Draft" : inv.status === "SENT" ? "Sent" : inv.status === "PENDING" ? "Unsent" : inv.status === "PARTIAL" ? "Partial" : inv.status === "PAID" ? "Paid" : inv.status === "CANCELLED" ? "Cancelled" : inv.status === "OVERDUE" ? "Overdue" : "Unsent") as Invoice['status'],
             amount: Number(inv.orderTotalAfterTax || 0),
             daysAgo: inv.orderDate ? `hace ${Math.floor((Date.now() - new Date(inv.orderDate).getTime()) / (1000 * 60 * 60 * 24))} dias` : "N/A",
             lineItems: (inv.details || []).map((detail: any) => ({
@@ -90,8 +90,10 @@ export function InvoiceList() {
     switch (activeTab) {
       case "draft":
         return inv.status === "Draft"
-      case "unpaid":
-        return inv.status === "Unsent" || inv.status === "Viewed" || inv.status === "Overdue"
+      case "pending":
+        return ["Unsent", "Sent", "Partial", "Overdue"].includes(inv.status)
+      case "send":
+        return inv.status === "Sent"
       case "paid":
         return inv.status === "Paid"
       default:
@@ -102,7 +104,8 @@ export function InvoiceList() {
   const tabs: { key: TabFilter; label: string; count?: number }[] = [
     { key: "all", label: "Todas" },
     { key: "draft", label: "Borrador" },
-    { key: "unpaid", label: "No Pagadas", count: filteredInvoices.length },
+    { key: "pending", label: "Pendientes", count: filteredInvoices.length },
+    { key: "send", label: "Enviadas" },
     { key: "paid", label: "Pagadas" },
   ]
 
@@ -162,9 +165,7 @@ export function InvoiceList() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-sans transition-colors whitespace-nowrap ${
               activeTab === tab.key
-                ? tab.key === "unpaid"
-                  ? "bg-[hsl(0,0%,100%)] text-[hsl(0,0%,5%)] font-medium"
-                  : "bg-secondary text-[hsl(0,0%,95%)] font-medium"
+                ? "bg-secondary text-[hsl(0,0%,95%)] font-medium"
                 : "text-muted-foreground hover:text-[hsl(0,0%,80%)]"
             }`}
           >
@@ -172,9 +173,7 @@ export function InvoiceList() {
             {tab.count !== undefined && activeTab === tab.key && (
               <span
                 className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  tab.key === "unpaid"
-                    ? "bg-[hsl(0,0%,5%,0.2)] text-[hsl(0,0%,5%)]"
-                    : "bg-[hsl(228,10%,25%)] text-[hsl(0,0%,80%)]"
+                  "bg-[hsl(228,10%,25%)] text-[hsl(0,0%,80%)]"
                 }`}
               >
                 {tab.count}
@@ -194,13 +193,17 @@ export function InvoiceList() {
         {/* Invoice list */}
         <div className="w-full lg:w-[400px] xl:w-[440px] flex flex-col gap-1 shrink-0">
           <h3 className="text-sm font-medium text-[hsl(209,83%,23%)] font-sans mb-2 px-1">
-            {activeTab === "unpaid"
-              ? "Facturas No Pagadas"
+            {activeTab === "all"
+              ? "Todas las Facturas"
               : activeTab === "draft"
                 ? "Borradores"
-                : activeTab === "paid"
-                  ? "Facturas Pagadas"
-                  : "Todas las Facturas"}
+                : activeTab === "pending"
+                  ? "Pendientes"
+                  : activeTab === "send"
+                    ? "Enviadas"
+                    : activeTab === "paid"
+                      ? "Pagadas"
+                      : "Todas las Facturas"}
           </h3>
           {loading ? (
             <div className="p-8 text-center text-[hsl(209,83%,23%)] text-sm font-sans">Cargando facturas...</div>
@@ -216,11 +219,10 @@ export function InvoiceList() {
                 key={inv.id}
                 type="button"
                 onClick={() => handleSelectInvoice(inv)}
-                className={`flex items-center gap-3 hover:scale-95 p-3 rounded-xl transition-all text-left w-full ${
-                  selectedInvoice?.id === inv.id
+                className={`flex items-center gap-3 hover:scale-95 p-3 rounded-xl transition-all text-left w-full ${selectedInvoice?.id === inv.id
                     ? "bg-[hsl(209,83%,23%)] ring-1 ring-[hsl(90,100%,50%,0.3)] text-[hsl(0,0%,95%)]"
                     : "text-[hsl(222,15%,10%)] hover:bg-[hsl(209,83%,23%)] hover:text-[hsl(0,0%,95%)]"
-                }`}
+                  }`}
               >
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-[hsl(228,10%,25%)] flex items-center justify-center shrink-0">
@@ -236,27 +238,38 @@ export function InvoiceList() {
                       # {inv.number}
                     </span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-sans font-medium ${
-                        inv.status === "Unsent"
+                      className={`text-xs px-2 py-0.5 rounded-full font-sans font-medium ${inv.status === "Unsent"
                           ? "bg-[hsl(45,100%,50%,0.15)] text-[hsl(45,100%,60%)]"
                           : inv.status === "Viewed"
                             ? "bg-[hsl(200,60%,50%,0.15)] text-[hsl(200,60%,60%)]"
                             : inv.status === "Paid"
                               ? "bg-[hsl(90,100%,50%,0.15)] text-[hsl(90,100%,50%)]"
                               : inv.status === "Draft"
-                                ? "bg-[hsl(228,10%,30%,0.5)] text-muted-foreground"
-                                : "bg-[hsl(0,84%,60%,0.15)] text-[hsl(0,84%,60%)]"
-                      }`}
+                                ? "bg-[hsl(228,10%,30%,0.5)] text-white"
+                                : inv.status === "Sent"
+                                  ? "bg-[hsl(120,60%,50%,0.15)] text-[hsl(120,60%,60%)]"
+                                  : inv.status === "Partial"
+                                    ? "bg-[hsl(30,100%,50%,0.15)] text-[hsl(30,100%,60%)]"
+                                    : inv.status === "Cancelled"
+                                      ? "bg-[hsl(0,84%,60%,0.15)] text-[hsl(0,84%,60%)]"
+                                      : "bg-[hsl(0,84%,60%,0.15)] text-[hsl(0,84%,60%)]"
+                        }`}
                     >
                       {inv.status === "Unsent"
-                        ? "No enviada"
+                        ? "Pendiente"
                         : inv.status === "Viewed"
                           ? "Vista"
                           : inv.status === "Paid"
                             ? "Pagada"
                             : inv.status === "Draft"
                               ? "Borrador"
-                              : "Vencida"}
+                              : inv.status === "Sent"
+                                ? "Enviada"
+                                : inv.status === "Partial"
+                                  ? "Pago Parcial"
+                                  : inv.status === "Cancelled"
+                                    ? "Anulada"
+                                    : "Vencida"}
                     </span>
                   </div>
                   <span className="text-xs text-[hsl(0,0%,48%)] font-sans">{inv.daysAgo}</span>

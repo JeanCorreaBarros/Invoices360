@@ -1,28 +1,25 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import {
   PlusIcon,
   SearchIcon,
-  FilterIcon,
   EyeIcon,
   EditIcon,
+  Power,
   TrashIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  UserCircle2,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AuthGuard } from "@/components/auth-guard";
-import { ModuleLayout } from "@/components/module-layout";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { id } from "date-fns/locale";
-import { DashboardHeader } from "@/components/dashboard-header"
-
+import { DashboardHeader } from "@/components/dashboard-header";
 
 type Client = {
   id: string;
@@ -36,590 +33,441 @@ type Client = {
   updatedAt?: string;
 };
 
- const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
-const API_BASE = 'https://plasticoslc.com/api'
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
 
+// ─── Shared field component ───────────────────────────────────────────────────
+function Field({ label, value, id, onChange, readOnly = false, type = "text" }: {
+  label: string; value: string; id?: string; type?: string;
+  onChange?: (v: string) => void; readOnly?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</Label>
+      <Input
+        id={id} type={type} value={value} readOnly={readOnly}
+        onChange={e => onChange?.(e.target.value)}
+        className={`h-11 text-base rounded-lg border-gray-200 ${readOnly ? "bg-gray-50 cursor-not-allowed text-gray-600" : "focus:ring-2 focus:ring-blue-500 focus:border-transparent"}`}
+      />
+    </div>
+  );
+}
+
+// ─── Client Card (mobile) ─────────────────────────────────────────────────────
+function ClientCard({ cliente, onView, onEdit, onToggle }: {
+  cliente: Client;
+  onView: () => void; onEdit: () => void; onToggle: () => void;
+}) {
+  const initials = cliente.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3"
+    >
+      {/* Top row */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-blue-950 flex items-center justify-center shrink-0">
+          <span className="text-white text-sm font-bold">{initials || "?"}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 truncate text-sm">{cliente.name}</p>
+          <p className="text-xs text-gray-500 truncate">NIT: {cliente.nit}</p>
+        </div>
+        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${cliente.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+          {cliente.active ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+
+      {/* Info grid */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div>
+          <span className="text-gray-400">Correo</span>
+          <p className="text-gray-700 truncate">{cliente.email || "—"}</p>
+        </div>
+        <div>
+          <span className="text-gray-400">Teléfono</span>
+          <p className="text-gray-700">{cliente.phone || "—"}</p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-100">
+        <button onClick={onView} className="flex flex-col items-center gap-1 py-2 rounded-xl hover:bg-blue-50 transition-colors text-blue-600">
+          <EyeIcon className="h-4 w-4" />
+          <span className="text-[10px] font-medium">Ver</span>
+        </button>
+        <button onClick={onEdit} className="flex flex-col items-center gap-1 py-2 rounded-xl hover:bg-amber-50 transition-colors text-amber-600">
+          <EditIcon className="h-4 w-4" />
+          <span className="text-[10px] font-medium">Editar</span>
+        </button>
+        <button onClick={onToggle} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors ${cliente.active ? "hover:bg-red-50 text-green-600 hover:text-red-500" : "hover:bg-green-50 text-gray-400 hover:text-green-600"}`}>
+          <Power className="h-4 w-4" />
+          <span className="text-[10px] font-medium">{cliente.active ? "Desact." : "Activar"}</span>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClientesPage() {
-  // States
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 5;
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const [selectedCliente, setSelectedCliente] = useState<Client | null>(null);
-
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
   const [isDeleteClientOpen, setIsDeleteClientOpen] = useState(false);
   const [isViewClientOpen, setIsViewClientOpen] = useState(false);
   const [isLoadingEditData, setIsLoadingEditData] = useState(false);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Form states
-  const emptyNewClient: Omit<Client, "id" | "createdAt" | "updatedAt" | "active"> = {
-    name: "",
-    nit: "",
-    email: "",
-    phone: "",
-    address: "",
-  };
-  const [newClient, setNewClient] = useState<Omit<Client, "id" | "createdAt" | "updatedAt" | "active">>(emptyNewClient);
-  const [editClient, setEditClient] = useState<Omit<Client, "id" | "createdAt" | "updatedAt" | "active">>(emptyNewClient);
+  const emptyClient = { name: "", nit: "", email: "", phone: "", address: "" };
+  const [newClient, setNewClient] = useState(emptyClient);
+  const [editClient, setEditClient] = useState(emptyClient);
 
-  // Helpers
-  const getToken = (): string | null => {
-    try {
-      return sessionStorage.getItem("token");
-    } catch (err) {
-      console.warn("sessionStorage unavailable", err);
-      return null;
-    }
-  };
+  const getToken = () => { try { return sessionStorage.getItem("token") } catch { return null } };
+  const normalizeText = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  // Normalize accents for search
-  const normalizeText = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  };
-
-  // Filter clients based on search term
-  const filteredClients = clients.filter(cliente => {
-    const searchNormalized = normalizeText(searchTerm);
-    return (
-      normalizeText(cliente.name).includes(searchNormalized) ||
-      normalizeText(cliente.nit).includes(searchNormalized) ||
-      normalizeText(cliente.email).includes(searchNormalized) ||
-      normalizeText(cliente.phone).includes(searchNormalized)
-    );
+  const filteredClients = clients.filter(c => {
+    const s = normalizeText(searchTerm);
+    return [c.name, c.nit, c.email, c.phone].some(f => normalizeText(f ?? "").includes(s));
   });
 
-  // Calculate total pages based on filtered results
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / itemsPerPage));
+  const paginatedClientes = filteredClients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-
-
-  // Fetch clients from API
   const fetchClients = async () => {
     setLoading(true);
     try {
       const token = getToken();
-
       const res = await fetch(`${apiBase}/customers`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
-
-      if (!res.ok) {
-        console.error("Failed fetching clients", res.status, await res.text());
-        setLoading(false);
-        return;
-      }
-
+      if (!res.ok) return;
       const data = await res.json();
       const arr: any[] = Array.isArray(data) ? data : data?.data ?? [];
-
-      const normalized: Client[] = arr.map((c: any) => ({
-        id: c.id,
-        name: c.name ?? "",
-        nit: c.nit ?? "",
-        email: c.email ?? "",
-        phone: c.phone ?? "",
-        address: c.address ?? "",
-        active: c.active ?? true,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-      }));
-
-      setClients(normalized);
-    } catch (err) {
-      console.error("Error fetching clients:", err);
-    } finally {
-      setLoading(false);
-    }
+      setClients(arr.map(c => ({ id: c.id, name: c.name ?? "", nit: c.nit ?? "", email: c.email ?? "", phone: c.phone ?? "", address: c.address ?? "", active: c.active ?? true, createdAt: c.createdAt, updatedAt: c.updatedAt })));
+    } catch (err) { console.error(err) }
+    finally { setLoading(false) }
   };
 
-  useEffect(() => {
-    fetchClients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { fetchClients() }, []);
 
-  // Pagination slice
-  const paginatedClientes = filteredClients.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  // Create client
   const handleCreateClient = async () => {
     try {
       const token = getToken();
-
-      const payload = { ...newClient };
-
       const res = await fetch(`${apiBase}/customers`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(newClient),
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Create client failed:", res.status, text);
-        alert("Error al crear cliente. Revisa la consola.");
-        return;
-      }
-
-      // Refresh list
+      if (!res.ok) { toast.error("Error al crear cliente"); return; }
       await fetchClients();
       setIsNewClientOpen(false);
-      setNewClient(emptyNewClient);
+      setNewClient(emptyClient);
       setCurrentPage(1);
-    } catch (err) {
-      console.error("Error creating client:", err);
-      alert("Error al crear cliente. Revisa la consola.");
-    }
+      toast.success("Cliente creado exitosamente");
+    } catch { toast.error("Error al crear cliente") }
   };
 
-  // Open edit modal and fetch client data by ID
   const openEditModal = async (client: Client) => {
     setSelectedCliente(client);
     setIsLoadingEditData(true);
-    
     try {
       const token = getToken();
-      
       const res = await fetch(`${apiBase}/customers/${client.id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
-
-      if (!res.ok) {
-        console.error("Failed fetching client details", res.status, await res.text());
-        alert("Error al cargar los datos del cliente");
-        setIsLoadingEditData(false);
-        return;
-      }
-
+      if (!res.ok) { toast.error("Error al cargar datos"); return; }
       const data = await res.json();
-      setEditClient({
-        name: data.name ?? "",
-        nit: data.nit ?? "",
-        email: data.email ?? "",
-        phone: data.phone ?? "",
-        address: data.address ?? "",
-      });
-    } catch (err) {
-      console.error("Error fetching client details:", err);
-      alert("Error al cargar los datos del cliente");
-    } finally {
-      setIsLoadingEditData(false);
-      setIsEditClientOpen(true);
-    }
+      setEditClient({ name: data.name ?? "", nit: data.nit ?? "", email: data.email ?? "", phone: data.phone ?? "", address: data.address ?? "" });
+    } catch { toast.error("Error al cargar datos") }
+    finally { setIsLoadingEditData(false); setIsEditClientOpen(true) }
   };
 
-  // Edit client (PUT)
   const handleEditClient = async () => {
-    if (!selectedCliente) return alert("No hay cliente seleccionado");
-
+    if (!selectedCliente) return;
     try {
       const token = getToken();
-      const payload = { ...editClient };
-
       const res = await fetch(`${apiBase}/customers/${selectedCliente.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(editClient),
       });
-
-      if (!res.ok) {
-        console.error("Update failed", res.status, await res.text());
-        alert("Error al actualizar cliente");
-        return;
-      }
-
+      if (!res.ok) { toast.error("Error al actualizar"); return; }
       await fetchClients();
       setIsEditClientOpen(false);
-      setSelectedCliente(null);
-    } catch (err) {
-      console.error("Error updating client:", err);
-      alert("Error al actualizar cliente");
-    }
+      toast.success("Cliente actualizado");
+    } catch { toast.error("Error al actualizar") }
   };
 
-  // Delete client
   const handleEliminar = async () => {
     if (!selectedCliente) return;
     try {
       const token = getToken();
       const res = await fetch(`${apiBase}/customers/${selectedCliente.id}`, {
         method: "DELETE",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
-      if (!res.ok) {
-        console.error("Delete failed", res.status, await res.text());
-        alert("Error al eliminar cliente");
-        return;
-      }
+      if (!res.ok) { toast.error("Error al eliminar"); return; }
       await fetchClients();
       setIsDeleteClientOpen(false);
       setSelectedCliente(null);
-    } catch (err) {
-      console.error("Error deleting client:", err);
-      alert("Error al eliminar cliente");
-    }
+      toast.success("Cliente eliminado");
+    } catch { toast.error("Error al eliminar") }
   };
 
-  // Open view modal and set selected
-  const openViewModal = (client: Client) => {
-    setSelectedCliente(client);
-    setIsViewClientOpen(true);
+  const handleToggleClientStatus = async (cliente: Client) => {
+    try {
+      const token = getToken();
+      const endpoint = cliente.active ? "deactivate" : "activate";
+      const res = await fetch(`${apiBase}/customers/${cliente.id}/${endpoint}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) { toast.error("Error al cambiar estado"); return; }
+      await fetchClients();
+      toast.success(`Cliente ${cliente.active ? "desactivado" : "activado"}`);
+    } catch { toast.error("Error al cambiar estado") }
   };
 
-  // UI helpers
-  const formatDateInputValue = (iso?: string) => {
-    if (!iso) return "";
-    return iso.split("T")[0];
-  };
+  const formatDate = (iso?: string) => iso ? new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Toaster position="top-right" />
       <DashboardHeader />
-      <main className="flex-1 overflow-y-auto md:p-9">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="max-w-6xl mx-auto"
-        >
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Clientes</h1>
 
+      <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="max-w-6xl mx-auto space-y-5">
+
+          {/* ── Page header ── */}
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Clientes</h1>
             <Button
-              className="bg-blue-950 hover:bg-blue-800 text-white flex items-center justify-center gap-2 text-sm sm:text-base px-4 py-2"
               onClick={() => setIsNewClientOpen(true)}
+              className="h-10 bg-blue-950 hover:bg-blue-800 text-white flex items-center gap-2 text-sm px-4 rounded-xl"
             >
               <PlusIcon className="h-4 w-4" />
-              <span>Nuevo Cliente</span>
+              <span className="hidden sm:inline">Nuevo Cliente</span>
+              <span className="sm:hidden">Nuevo</span>
             </Button>
           </div>
 
-          {/* Search / filters */}
-          <div className="bg-white shadow-xl p-4 rounded-lg  mb-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="relative flex-1 w-full">
-                <input
-                  type="text"
-                  placeholder="Buscar cliente por nombre, NIT, email o teléfono..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full bg-white pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-bivoo-purple focus:outline-none text-sm sm:text-base"
-                />
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              </div>
-
-              <div className="flex hidden flex-col sm:flex-row gap-2 w-full md:w-auto">
-                <Button
-                  variant="outline"
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto text-sm sm:text-base"
-                >
-                  <FilterIcon className="h-4 w-4" />
-                  Filtrar
-                </Button>
-
-                <select
-                  className="border bg-white rounded-lg px-3 py-2 text-sm sm:text-base w-full sm:w-auto focus:ring-2 focus:ring-bivoo-purple focus:outline-none"
-                >
-                  <option>Todos</option>
-                  <option>Con correo</option>
-                  <option>Sin correo</option>
-                </select>
-              </div>
-            </div>
+          {/* ── Search ── */}
+          <div className="relative">
+            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, NIT, email o teléfono..."
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="w-full h-11 bg-white pl-10 pr-4 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+            />
           </div>
 
-          {/* Table / Cards */}
-          <div className="bg-white shadow-xl rounded-lg shadow-sm overflow-hidden mb-6">
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NIT</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Correo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {loading ? (
-                    <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500">Cargando clientes...</td></tr>
-                  ) : paginatedClientes.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-4 text-sm text-gray-500">No hay clientes</td></tr>
-                  ) : (
-                    paginatedClientes.map(cliente => (
-                      <motion.tr key={cliente.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{cliente.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cliente.nit}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cliente.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cliente.phone}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800" onClick={() => openViewModal(cliente)}>
+          {/* ── Content ── */}
+          {loading ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Cargando clientes...</div>
+          ) : filteredClients.length === 0 ? (
+            <div className="py-16 text-center">
+              <UserCircle2 className="h-12 w-12 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">{searchTerm ? "Sin resultados para tu búsqueda" : "No hay clientes registrados"}</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      {["Nombre", "NIT", "Correo", "Teléfono", "Estado", "Acciones"].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {paginatedClientes.map(cliente => (
+                      <motion.tr key={cliente.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-4 text-sm font-medium text-gray-900">{cliente.name}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500">{cliente.nit}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500">{cliente.email}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500">{cliente.phone}</td>
+                        <td className="px-5 py-4">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${cliente.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                            {cliente.active ? "Activo" : "Inactivo"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => { setSelectedCliente(cliente); setIsViewClientOpen(true); }}>
                               <EyeIcon className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-amber-600 hover:text-amber-800" onClick={() => openEditModal(cliente)}>
+                            <Button variant="ghost" size="sm" className="text-amber-600 hover:bg-amber-50 rounded-lg" onClick={() => openEditModal(cliente)}>
                               <EditIcon className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800" onClick={() => { setSelectedCliente(cliente); setIsDeleteClientOpen(true); }}>
-                              <TrashIcon className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className={`rounded-lg ${cliente.active ? "text-green-600 hover:bg-red-50 hover:text-red-500" : "text-gray-400 hover:bg-green-50 hover:text-green-600"}`} onClick={() => handleToggleClientStatus(cliente)}>
+                              <Power className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
                       </motion.tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Mobile cards */}
-            <div className="md:hidden">
-              <div className="divide-y divide-gray-200">
-                {loading ? (
-                  <div className="p-4 text-sm text-gray-500">Cargando clientes...</div>
-                ) : paginatedClientes.length === 0 ? (
-                  <div className="p-4 text-sm text-gray-500">No hay clientes</div>
-                ) : (
-                  paginatedClientes.map(cliente => (
-                    <motion.div key={cliente.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="p-4 flex flex-col space-y-2 hover:bg-gray-50">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-semibold text-gray-900">{cliente.name}</h3>
-                        <div className="flex space-x-2">
-                          <Button variant="ghost" size="icon" className="text-blue-600 hover:text-blue-800" onClick={() => openViewModal(cliente)}>
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-amber-600 hover:text-amber-800" onClick={() => openEditModal(cliente)}>
-                            <EditIcon className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-800" onClick={() => { setSelectedCliente(cliente); setIsDeleteClientOpen(true); }}>
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500"><span className="font-semibold">NIT:</span> {cliente.nit}</p>
-                      <p className="text-xs text-gray-500"><span className="font-semibold">Correo:</span> {cliente.email}</p>
-                      <p className="text-xs text-gray-500"><span className="font-semibold">Teléfono:</span> {cliente.phone}</p>
-                    </motion.div>
-                  ))
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {paginatedClientes.map(cliente => (
+                  <ClientCard
+                    key={cliente.id}
+                    cliente={cliente}
+                    onView={() => { setSelectedCliente(cliente); setIsViewClientOpen(true); }}
+                    onEdit={() => openEditModal(cliente)}
+                    onToggle={() => handleToggleClientStatus(cliente)}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-gray-500 text-center sm:text-left">
+                  Mostrando {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredClients.length)} de {filteredClients.length} clientes
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="p-2 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                    <ChevronLeftIcon className="h-4 w-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button key={page} onClick={() => setCurrentPage(page)}
+                      className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-950 text-white" : "hover:bg-gray-100 text-gray-600"}`}>
+                      {page}
+                    </button>
+                  ))}
+                  <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="p-2 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+       <MobileBottomNav />
+
+      {/* ── Create Modal ── */}
+      <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
+        <DialogContent className="bg-white w-[calc(100%-2rem)] sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Nuevo Cliente</DialogTitle>
+            <p className="text-sm text-gray-500">Completa los datos para registrar un nuevo cliente.</p>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <Field label="Nombre" id="name" value={newClient.name} onChange={v => setNewClient({ ...newClient, name: v })} />
+            <Field label="NIT" id="nit" value={newClient.nit} onChange={v => setNewClient({ ...newClient, nit: v })} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Email" id="email" type="email" value={newClient.email} onChange={v => setNewClient({ ...newClient, email: v })} />
+              <Field label="Teléfono" id="phone" value={newClient.phone} onChange={v => setNewClient({ ...newClient, phone: v })} />
+            </div>
+            <Field label="Dirección" id="address" value={newClient.address ?? ""} onChange={v => setNewClient({ ...newClient, address: v })} />
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setIsNewClientOpen(false); setNewClient(emptyClient); }} className="w-full sm:w-auto h-11">Cancelar</Button>
+            <Button onClick={handleCreateClient} className="w-full sm:w-auto h-11 bg-blue-950 hover:bg-blue-800 text-white">Crear Cliente</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Modal ── */}
+      <Dialog open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
+        <DialogContent className="bg-white w-[calc(100%-2rem)] sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Editar Cliente</DialogTitle>
+            <p className="text-sm text-gray-500">Actualiza los datos del cliente.</p>
+          </DialogHeader>
+          {isLoadingEditData ? (
+            <div className="py-10 text-center text-gray-400 text-sm">Cargando datos...</div>
+          ) : (
+            <div className="grid gap-4 py-2">
+              <Field label="Nombre" id="edit_name" value={editClient.name} onChange={v => setEditClient({ ...editClient, name: v })} />
+              <Field label="NIT" id="edit_nit" value={editClient.nit} onChange={v => setEditClient({ ...editClient, nit: v })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Email" id="edit_email" type="email" value={editClient.email} onChange={v => setEditClient({ ...editClient, email: v })} />
+                <Field label="Teléfono" id="edit_phone" value={editClient.phone} onChange={v => setEditClient({ ...editClient, phone: v })} />
+              </div>
+              <Field label="Dirección" id="edit_address" value={editClient.address ?? ""} onChange={v => setEditClient({ ...editClient, address: v })} />
+            </div>
+          )}
+          <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+            <Button variant="outline" onClick={() => setIsEditClientOpen(false)} className="w-full sm:w-auto h-11">Cancelar</Button>
+            <Button onClick={handleEditClient} disabled={isLoadingEditData} className="w-full sm:w-auto h-11 bg-blue-800 hover:bg-blue-900 text-white">Guardar Cambios</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Modal ── */}
+      <Dialog open={isDeleteClientOpen} onOpenChange={setIsDeleteClientOpen}>
+        <DialogContent className="bg-white w-[calc(100%-2rem)] sm:max-w-sm rounded-2xl p-5 sm:p-6 text-center">
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+              <TrashIcon className="h-7 w-7 text-red-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-900">¿Eliminar cliente?</h2>
+            <p className="text-sm text-gray-500">Esta acción no se puede deshacer. Se eliminará permanentemente a <span className="font-semibold text-gray-700">{selectedCliente?.name}</span>.</p>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 mt-2">
+            <Button variant="outline" onClick={() => setIsDeleteClientOpen(false)} className="w-full sm:w-auto h-11">Cancelar</Button>
+            <Button variant="destructive" onClick={handleEliminar} className="w-full sm:w-auto h-11">Eliminar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── View Modal ── */}
+      <Dialog open={isViewClientOpen} onOpenChange={setIsViewClientOpen}>
+        <DialogContent className="bg-white w-[calc(100%-2rem)] sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-2xl p-5 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Detalle del Cliente</DialogTitle>
+          </DialogHeader>
+          {selectedCliente ? (
+            <div className="space-y-4 py-2">
+              {/* Avatar + name banner */}
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-blue-950 flex items-center justify-center shrink-0">
+                  <span className="text-white text-sm font-bold">
+                    {selectedCliente.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">{selectedCliente.name}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${selectedCliente.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {selectedCliente.active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <Field label="NIT" value={selectedCliente.nit} readOnly />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="Correo Electrónico" value={selectedCliente.email} readOnly />
+                  <Field label="Teléfono" value={selectedCliente.phone} readOnly />
+                </div>
+                <Field label="Dirección" value={selectedCliente.address || "—"} readOnly />
+                {selectedCliente.createdAt && (
+                  <Field label="Fecha de Creación" value={formatDate(selectedCliente.createdAt)} readOnly />
                 )}
               </div>
             </div>
-
-            {/* Pagination */}
-            <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row items-center justify-between border-t gap-3">
-              <div className="text-xs md:text-sm text-gray-500 text-center md:text-left">
-                Mostrando {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredClients.length)} de {filteredClients.length} clientes
-              </div>
-              <div className="flex flex-wrap justify-center md:justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1}><ChevronLeftIcon className="h-4 w-4" /></Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <Button key={page} variant={currentPage === page ? "default" : "outline"} size="sm" onClick={() => setCurrentPage(page)}>{page}</Button>
-                ))}
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages}><ChevronRightIcon className="h-4 w-4" /></Button>
-              </div>
-            </div>
+          ) : (
+            <p className="text-center text-gray-400 py-8 text-sm">No hay cliente seleccionado.</p>
+          )}
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setIsViewClientOpen(false)} className="w-full sm:w-auto h-11">Cerrar</Button>
           </div>
-
-          {/* Create Client Modal */}
-          <Dialog open={isNewClientOpen} onOpenChange={(open) => setIsNewClientOpen(open)}>
-            <DialogContent className="w-[95vw] bg-white sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6 shadow-lg">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl font-semibold text-center sm:text-left">Crear Nuevo Cliente</DialogTitle>
-              </DialogHeader>
-
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nombre</Label>
-                  <Input id="name" value={newClient.name} onChange={e => setNewClient({ ...newClient, name: e.target.value })} />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="nit">NIT</Label>
-                  <Input id="nit" value={newClient.nit} onChange={e => setNewClient({ ...newClient, nit: e.target.value })} />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={newClient.email} onChange={e => setNewClient({ ...newClient, email: e.target.value })} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input id="phone" value={newClient.phone} onChange={e => setNewClient({ ...newClient, phone: e.target.value })} />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="address">Dirección</Label>
-                  <Input id="address" value={newClient.address} onChange={e => setNewClient({ ...newClient, address: e.target.value })} />
-                </div>
-              </div>
-
-              <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-                <Button variant="outline" onClick={() => { setIsNewClientOpen(false); setNewClient(emptyNewClient); }} className="w-full sm:w-auto">Cancelar</Button>
-                <Button onClick={handleCreateClient} className="w-full sm:w-auto bg-purple-500 hover:bg-purple-700 text-white">Guardar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Client Modal */}
-          <Dialog open={isEditClientOpen} onOpenChange={(open) => setIsEditClientOpen(open)}>
-            <DialogContent className="w-[90vw] bg-white sm:max-w-[520px] max-h-[85vh] overflow-y-auto rounded-2xl p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl font-bold text-center sm:text-left text-gray-800">Editar Cliente</DialogTitle>
-                <p className="text-sm text-gray-500 text-center sm:text-left">Actualiza los datos del cliente y guarda los cambios.</p>
-              </DialogHeader>
-
-              {isLoadingEditData ? (
-                <div className="py-8 text-center">
-                  <p className="text-gray-500">Cargando datos del cliente...</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit_name">Nombre</Label>
-                    <Input id="edit_name" value={editClient.name} onChange={e => setEditClient({ ...editClient, name: e.target.value })} />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit_nit">NIT</Label>
-                    <Input id="edit_nit" value={editClient.nit} onChange={e => setEditClient({ ...editClient, nit: e.target.value })} />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit_email">Email</Label>
-                      <Input id="edit_email" type="email" value={editClient.email} onChange={e => setEditClient({ ...editClient, email: e.target.value })} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit_phone">Teléfono</Label>
-                      <Input id="edit_phone" value={editClient.phone} onChange={e => setEditClient({ ...editClient, phone: e.target.value })} />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit_address">Dirección</Label>
-                    <Input id="edit_address" value={editClient.address} onChange={e => setEditClient({ ...editClient, address: e.target.value })} />
-                  </div>
-                </div>
-              )}
-
-              <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-                <Button variant="outline" onClick={() => { setIsEditClientOpen(false); setEditClient(emptyNewClient); }} className="w-full sm:w-auto hover:bg-red-800">Cancelar</Button>
-                <Button onClick={handleEditClient} disabled={isLoadingEditData} className="w-full sm:w-auto bg-blue-800 text-white">Guardar Cambios</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Modal */}
-          <Dialog open={isDeleteClientOpen} onOpenChange={(open) => setIsDeleteClientOpen(open)}>
-            <DialogContent className="w-[90vw] bg-white sm:max-w-md rounded-2xl p-4 sm:p-6 text-center">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl font-semibold">¿Eliminar cliente permanentemente?</DialogTitle>
-              </DialogHeader>
-              <div className="p-4 flex flex-col items-center">
-                <TrashIcon className="h-12 w-12 text-red-600 mb-3" />
-                <p className="mb-4 text-gray-600 text-sm sm:text-base">
-                  Esta acción no se puede deshacer. ¿Estás seguro de eliminar a <span className="font-bold">{selectedCliente?.firstName} {selectedCliente?.lastName}</span>?
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-center">
-                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDeleteClientOpen(false)}>Cancelar</Button>
-                  <Button variant="destructive" className="w-full sm:w-auto" onClick={handleEliminar}>Eliminar</Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* View Modal */}
-          <Dialog open={isViewClientOpen} onOpenChange={(open) => setIsViewClientOpen(open)}>
-            <DialogContent className="w-[90vw] bg-white sm:max-w-[520px] max-h-[85vh] overflow-y-auto rounded-2xl p-4 sm:p-6">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl font-semibold text-center sm:text-left">Información del Cliente</DialogTitle>
-              </DialogHeader>
-
-              {selectedCliente ? (
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label>Nombre</Label>
-                    <Input value={selectedCliente.name} readOnly className="bg-gray-100 cursor-not-allowed" />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>NIT</Label>
-                    <Input value={selectedCliente.nit} readOnly className="bg-gray-100 cursor-not-allowed" />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Correo Electrónico</Label>
-                      <Input value={selectedCliente.email} readOnly className="bg-gray-100 cursor-not-allowed" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Teléfono</Label>
-                      <Input value={selectedCliente.phone} readOnly className="bg-gray-100 cursor-not-allowed" />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>Dirección</Label>
-                    <Input value={selectedCliente.address || ""} readOnly className="bg-gray-100 cursor-not-allowed" />
-                  </div>
-
-                  {selectedCliente.active !== undefined && (
-                    <div className="grid gap-2">
-                      <Label>Estado</Label>
-                      <Input value={selectedCliente.active ? "Activo" : "Inactivo"} readOnly className="bg-gray-100 cursor-not-allowed" />
-                    </div>
-                  )}
-
-                  {selectedCliente.createdAt && (
-                    <div className="grid gap-2">
-                      <Label>Creado</Label>
-                      <Input value={formatDateInputValue(selectedCliente.createdAt)} readOnly className="bg-gray-100 cursor-not-allowed" />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-center text-gray-500 py-4">No se ha seleccionado ningún cliente.</p>
-              )}
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsViewClientOpen(false)}>Cerrar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </motion.div>
-      </main>
+        </DialogContent>
+      </Dialog>
     </div>
-
   );
 }

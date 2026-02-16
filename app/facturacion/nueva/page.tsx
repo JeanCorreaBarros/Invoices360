@@ -117,6 +117,10 @@ export default function NuevaFacturaPage() {
     const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
     const [metodoPagoDetalle, setMetodoPagoDetalle] = useState("")
     const [tipoDocumento, setTipoDocumento] = useState("Factura de venta")
+    const [retencion, setRetencion] = useState("0")
+    const [reteica, setReteica] = useState("0")
+    const [reteiva, setReteiva] = useState("0")
+    const [autoretencion, setAutoretencion] = useState("0")
     const [notes, setNotes] = useState("Notas Internas...")
     const [clientsList, setClientsList] = useState<any[]>([])
     const [clientsLoading, setClientsLoading] = useState(false)
@@ -150,6 +154,7 @@ export default function NuevaFacturaPage() {
     const [isSavingDraft, setIsSavingDraft] = useState(false)
     const [showDownloadDialog, setShowDownloadDialog] = useState(false)
     const [currentInvoiceId, setCurrentInvoiceId] = useState<number | null>(null)
+    const [orderResolution, setOrderResolution] = useState("RES-2026-001") // default
 
     const [company, setCompany] = useState<any>(null);
     const logoInputRef = useRef<HTMLInputElement>(null)
@@ -202,6 +207,22 @@ export default function NuevaFacturaPage() {
     const getPaymentForm = (): number => {
         const form = paymentFormsOptions.find(f => f.label === formaPago);
         return form?.value || 1;
+    };
+
+    // Función helper para obtener el plazo de pago
+    const getPlazoPago = (): string => {
+        switch (formaPago) {
+            case "Contado":
+                return "0";
+            case "Crédito 30 días":
+                return "30";
+            case "Crédito 60 días":
+                return "60";
+            case "Crédito 90 días":
+                return "90";
+            default:
+                return "0";
+        }
     };
 
     // Función helper para obtener el código de medio de pago
@@ -291,6 +312,32 @@ export default function NuevaFacturaPage() {
     }, [])
 
     useEffect(() => {
+        const fetchResolutions = async () => {
+            const token = getToken();
+            if (!token) return;
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+            try {
+                const res = await fetch(`${apiBase}resolutions`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const prefix = getOrderPrefix();
+                    const resolution = data.find((r: any) => r.prefix === prefix && r.active);
+                    if (resolution) {
+                        setOrderResolution(String(resolution.id));
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching resolutions:', err);
+            }
+        };
+        fetchResolutions();
+    }, [tipoDocumento]) // depends on tipoDocumento since getOrderPrefix uses it
+
+    useEffect(() => {
         // Calcular totales cuando cambian los items
         let newSubtotal = 0
         let newImpuestos = 0
@@ -298,7 +345,7 @@ export default function NuevaFacturaPage() {
 
         items.forEach((item) => {
             const itemSubtotal = item.precio * item.cantidad
-            const itemDescuento = itemSubtotal * (item.descuento / 100)
+            const itemDescuento = Math.min(item.descuento || 0, itemSubtotal)
             totalDescuentos += itemDescuento
 
             const itemTotal = itemSubtotal - itemDescuento
@@ -321,7 +368,7 @@ export default function NuevaFacturaPage() {
         const payload = {
             /*orderId: Date.now(),*/
             orderPrefix: getOrderPrefix(),
-            orderResolution: "RES-2026-001",
+            orderResolution: orderResolution,
             userId: getUserId(),
             orderDate: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
             orderReceiverNit: identificacion || "",
@@ -340,17 +387,17 @@ export default function NuevaFacturaPage() {
             cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
             paymentForms: getPaymentForm(),
             paymentMethods: getPaymentMethod(),
-            retencion: "0",
-            reteica: 0,
-            reteiva: 0,
-            autoretencion: 0,
+            retencion: retencion || "0",
+            reteica: Number(reteica) || 0,
+            reteiva: Number(reteiva) || 0,
+            autoretencion: Number(autoretencion) || 0,
             ciiu: 0,
-            plazoPago: formaPago || "30",
+            plazoPago: getPlazoPago(),
             vencimiento: "30",
             status: "1",
             items: items.map((it) => {
                 const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
+                const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
                 const totalAfterDiscount = baseTotal - itemDescAmount
                 const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
                 const taxAmount = totalAfterDiscount * (taxPercent / 100)
@@ -360,7 +407,7 @@ export default function NuevaFacturaPage() {
                     itemCode: it.referencia || `ITEM-${Date.now()}`,
                     quantity: 0,
                     orderPrefix: getOrderPrefix(),
-                    orderResolution: "RES-2026-001",
+                    orderResolution: orderResolution,
                     reference: it.referencia || "",
                     itemName: it.descripcion || it.referencia || "",
                     descripcion: it.descripcion || "",
@@ -373,7 +420,7 @@ export default function NuevaFacturaPage() {
             })
         }
         console.log("📋 Payload en tiempo real:", payload)
-    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes])
+    }, [cliente, identificacion, telefono, email, direccion, fecha, formaPago, medioPago, subtotal, impuestos, descuento, total, items, tipoDocumento, notes, orderResolution, retencion, reteica, reteiva, autoretencion])
 
     const addItem = () => {
         setItems([
@@ -416,9 +463,9 @@ export default function NuevaFacturaPage() {
                     const clamped = clamp(n, -1e12, 1e12);
                     newValue = Math.round(clamped * 100) / 100;
                 } else if (field === "descuento") {
-                    // discount is a percent: force between 0 and 100
+                    // discount is a fixed amount: allow positive numbers
                     const n = Number(value) || 0;
-                    const clamped = clamp(n, 0, 100);
+                    const clamped = clamp(n, 0, 1e12);
                     newValue = Math.round(clamped * 100) / 100;
                 } else if (field === "cantidad") {
                     // cantidad should be an integer and non-negative
@@ -452,8 +499,11 @@ export default function NuevaFacturaPage() {
         total: number
     }) => {
         const baseTotal = item.precio * item.cantidad
-        const totalConDescuento = baseTotal * (1 - (item.descuento || 0) / 100)
-        return totalConDescuento
+        const discount = Math.min(item.descuento || 0, baseTotal) // don't allow discount > baseTotal
+        const totalConDescuento = baseTotal - discount
+        const taxPercent = Number(String(item.impuesto || "0").replace("%", "")) / 100
+        const taxAmount = totalConDescuento * taxPercent
+        return totalConDescuento + taxAmount
     }
 
     const handleMedioPagoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -578,6 +628,7 @@ export default function NuevaFacturaPage() {
     }
 
     const handleSaveDraft = async () => {
+        console.log("Guardando borrador con payload:")
         setIsSavingDraft(true)
         const token = getToken();
         const myHeaders = new Headers();
@@ -589,12 +640,13 @@ export default function NuevaFacturaPage() {
             const payload = {
                 orderId: Date.now(),
                 orderPrefix: getOrderPrefix(),
-                orderResolution: "RES-2026-001",
+                orderResolution: orderResolution,
                 userId: getUserId(),
                 orderDate: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
                 orderReceiverNit: identificacion || "",
                 orderReceiverName: cliente || "",
                 orderReceiverAddress: direccion || "",
+                orderReceiverEmail: email || "",
                 orderReceiverPhone: telefono || "",
                 orderTotalDesc: descuento || 0,
                 orderSubtotalBeforeTax: subtotal || 0,
@@ -604,21 +656,22 @@ export default function NuevaFacturaPage() {
                 orderTotalAfterTax: total || 0,
                 orderAmountPaid: total || 0,
                 orderTotalAmountDue: total || 0,
+                sellerId: vendedor || "",
                 note: notes,
                 cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
                 paymentForms: getPaymentForm(),
                 paymentMethods: getPaymentMethod(),
-                retencion: "4",
-                reteica: 2,
-                reteiva: 1,
-                autoretencion: 1,
+                retencion: retencion || "0",
+                reteica: Number(reteica) || 0,
+                reteiva: Number(reteiva) || 0,
+                autoretencion: Number(autoretencion) || 0,
                 ciiu: 2,
-                plazoPago: formaPago || "30",
+                plazoPago: getPlazoPago(),
                 vencimiento: "30",
-                status: "draft",
+                status: "DRAFT",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                    const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
+                    const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
                     const totalAfterDiscount = baseTotal - itemDescAmount
                     const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
                     const taxAmount = totalAfterDiscount * (taxPercent / 100)
@@ -628,7 +681,7 @@ export default function NuevaFacturaPage() {
                         itemCode: it.referencia || `ITEM-${Date.now()}`,
                         quantity: 0,
                         orderPrefix: getOrderPrefix(),
-                        orderResolution: "RES-2026-001",
+                        orderResolution: orderResolution,
                         reference: it.referencia || "",
                         itemName: it.descripcion || it.referencia || "",
                         descripcion: it.descripcion || "",
@@ -640,7 +693,8 @@ export default function NuevaFacturaPage() {
                     }
                 })
             }
-            const res = await fetch("https://plasticoslc.com/api/invoices", {
+             const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+            const res = await fetch(`${apiBase}invoices`, {
                 method: "POST",
                 headers: myHeaders,
                 body: JSON.stringify(payload),
@@ -722,12 +776,13 @@ export default function NuevaFacturaPage() {
             const payload = {
                 orderId: Date.now(),
                 orderPrefix: getOrderPrefix(),
-                orderResolution: "RES-2026-001",
+                orderResolution: orderResolution,
                 userId: getUserId(),
                 orderDate: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
                 orderReceiverNit: identificacion || "",
                 orderReceiverName: cliente || "",
                 orderReceiverAddress: direccion || "",
+                orderReceiverEmail: email || "",
                 orderReceiverPhone: telefono || "",
                 orderTotalDesc: descuento || 0,
                 orderSubtotalBeforeTax: subtotal || 0,
@@ -737,21 +792,22 @@ export default function NuevaFacturaPage() {
                 orderTotalAfterTax: total || 0,
                 orderAmountPaid: total || 0,
                 orderTotalAmountDue: total || 0,
+                sellerId: vendedor || "",
                 note: notes,
                 cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
                 paymentForms: getPaymentForm(),
                 paymentMethods: getPaymentMethod(),
-                retencion: "4",
-                reteica: 2,
-                reteiva: 1,
-                autoretencion: 1,
-                ciiu: 2,
-                plazoPago: formaPago || "30",
+                retencion: retencion || "0",
+                reteica: Number(reteica) || 0,
+                reteiva: Number(reteiva) || 0,
+                autoretencion: Number(autoretencion) || 0,
+                ciiu: 0,
+                plazoPago: getPlazoPago(),
                 vencimiento: "30",
-                status: "1",
+                status: "PENDING",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
-                    const itemDescAmount = baseTotal * ((Number(it.descuento) || 0) / 100)
+                    const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
                     const totalAfterDiscount = baseTotal - itemDescAmount
                     const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
                     const taxAmount = totalAfterDiscount * (taxPercent / 100)
@@ -761,7 +817,7 @@ export default function NuevaFacturaPage() {
                         itemCode: it.referencia || `ITEM-${Date.now()}`,
                         quantity: 0,
                         orderPrefix: getOrderPrefix(),
-                        orderResolution: "RES-2026-001",
+                        orderResolution: orderResolution,
                         reference: it.referencia || "",
                         itemName: it.descripcion || it.referencia || "",
                         descripcion: it.descripcion || "",
@@ -781,51 +837,55 @@ export default function NuevaFacturaPage() {
                 body: JSON.stringify(payload),
             })
 
-            if (!res.ok) {
-                const text = await res.text()
-                throw new Error(`HTTP ${res.status}: ${text}`)
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             }
 
-            const data = await res.json().catch(() => null)
+            if (data.ok) {
+                toast.success(data.message || `Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? "-"})`);
+                console.log("Emit invoice response:", data);
 
-            toast.success(`Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? "-"})`)
-            console.log("Emit invoice response:", data)
+                // Store the invoice ID for downloads
+                setCurrentInvoiceId(data?.id ?? data?.invoiceId ?? null);
 
-            // Store the invoice ID for downloads
-            setCurrentInvoiceId(data?.id ?? data?.invoiceId ?? null)
-
-            // Limpiar todos los inputs al emitir exitosamente
-            setCliente("")
-            setIdentificacion("")
-            setTelefono("")
-            setEmail("")
-            setDireccion("")
-            setFecha("")
-            setFormaPago("Contado")
-            setMedioPago("Efectivo")
-            setShowPaymentMethodDialog(false)
-            setMetodoPagoDetalle("")
-            setItems([
-                {
-                    id: Date.now(),
-                    referencia: "",
-                    precio: 0,
-                    descuento: 0,
-                    impuesto: "0%",
-                    descripcion: "",
-                    cantidad: 1,
-                    total: 0,
-                },
-            ])
-            setSignaturePreview(null)
-            const canvas = signatureCanvasRef.current
-            if (canvas) {
-                const ctx = canvas.getContext("2d")
-                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+                // Limpiar todos los inputs al emitir exitosamente
+                setCliente("");
+                setIdentificacion("");
+                setTelefono("");
+                setEmail("");
+                setDireccion("");
+                setFecha("");
+                setFormaPago("Contado");
+                setMedioPago("Efectivo");
+                setShowPaymentMethodDialog(false);
+                setMetodoPagoDetalle("");
+                setItems([
+                    {
+                        id: Date.now(),
+                        referencia: "",
+                        precio: 0,
+                        descuento: 0,
+                        impuesto: "0%",
+                        descripcion: "",
+                        cantidad: 1,
+                        total: 0,
+                    },
+                ]);
+                setSignaturePreview(null);
+                const canvas = signatureCanvasRef.current;
+                if (canvas) {
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            } else {
+                toast.error(data.message || "Error al emitir la factura");
             }
         } catch (error) {
             console.error("Error emitiendo factura:", error)
-            toast.error("Ocurrió un error al emitir la factura. Revisa la consola para más detalles.")
+            toast.error("Error de conexión al emitir la factura. Revisa la consola para más detalles.")
         } finally {
             setIsEmitting(false)
         }
@@ -1022,7 +1082,7 @@ export default function NuevaFacturaPage() {
                             {logoPreview || company?.logo ? (
                                 <div className="relative w-full h-full">
                                     <Image
-                                        src={logoPreview || company?.logo || "/placeholder.svg"}
+                                        src={logoPreview || (company?.logo ? `https://plasticoslc.com${company.logo}` : "/placeholder.svg")}
                                         alt="Logo de la empresa"
                                         fill
                                         className="object-contain bg-white"
@@ -1059,18 +1119,20 @@ export default function NuevaFacturaPage() {
                         <div className="w-48">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">No.</span>
-                                <span className="text-blue-600">PlasticosLC-001</span>
+                                <span className="text-blue-600 animate-pulse">
+                                    {currentInvoiceId ? `PlasticosLC-${currentInvoiceId}` : "Creando..."}
+                                </span>
                                 <button className="text-gray-400 hover:text-gray-600">
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
                             </div>
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">Consecutivo:</span>
-                                <span>001</span>
+                                <span className="animate-pulse">Creando</span>
                             </div>
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">Estado:</span>
-                                <span className="text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full text-xs">Borrador</span>
+                                <span className="text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full text-xs animate-pulse">No Definido</span>
                             </div>
                         </div>
                     </motion.div>
@@ -1315,7 +1377,7 @@ export default function NuevaFacturaPage() {
                                         <th className="text-left py-2 w-10">#</th>
                                         <th className="text-left py-2">Referencia</th>
                                         <th className="text-left py-2">Precio</th>
-                                        <th className="text-left py-2">Desc. %</th>
+                                        <th className="text-left py-2">Descuento</th>
                                         <th className="text-left py-2">Impuesto</th>
                                         <th className="text-left py-2">Descripción</th>
                                         <th className="text-left py-2">Cantidad</th>
@@ -1397,7 +1459,6 @@ export default function NuevaFacturaPage() {
                                                     className="border bg-white rounded px-2 py-1 w-full"
                                                     value={item.descuento}
                                                     min={0}
-                                                    max={100}
                                                     step={0.01}
                                                     onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
                                                 />
@@ -1477,7 +1538,7 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Signature and Terms */}
-                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                    <motion.div variants={itemVariants} className="grid  grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                         <div
                             className="border-2 border-dashed border-gray-300 h-32 flex items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
                             onClick={() => signatureInputRef.current?.click()}
@@ -1774,6 +1835,57 @@ export default function NuevaFacturaPage() {
                                 </div>
                             </DialogContent>
                         </Dialog>
+                    </motion.div>
+
+                    {/* Retenciones */}
+                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                        <h3 className="font-semibold mb-4">Retenciones</h3>
+                        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                            <div>
+                                <Label htmlFor="retencion" className="text-sm text-gray-600 mb-1 block">Retención (%)</Label>
+                                <Input
+                                    id="retencion"
+                                    type="number"
+                                    placeholder="0"
+                                    value={retencion}
+                                    onChange={(e) => setRetencion(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="reteica" className="text-sm text-gray-600 mb-1 block">Rete ICA (%)</Label>
+                                <Input
+                                    id="reteica"
+                                    type="number"
+                                    placeholder="0"
+                                    value={reteica}
+                                    onChange={(e) => setReteica(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="reteiva" className="text-sm text-gray-600 mb-1 block">Rete IVA (%)</Label>
+                                <Input
+                                    id="reteiva"
+                                    type="number"
+                                    placeholder="0"
+                                    value={reteiva}
+                                    onChange={(e) => setReteiva(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="autoretencion" className="text-sm text-gray-600 mb-1 block">Autoretencion (%)</Label>
+                                <Input
+                                    id="autoretencion"
+                                    type="number"
+                                    placeholder="0"
+                                    value={autoretencion}
+                                    onChange={(e) => setAutoretencion(e.target.value)}
+                                    className="bg-white border rounded px-3 py-2"
+                                />
+                            </div>
+                        </div>
                     </motion.div>
 
                     {/* Notes */}

@@ -2,12 +2,85 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Plus, Edit, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import toast from "react-hot-toast"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://plasticoslc.com/api"
 
+interface Role {
+  id: string
+  name: string
+  description: string
+}
+
+interface UserRole {
+  userId: string
+  roleId: string
+  role: Role
+}
+
+interface User {
+  id: string
+  name: string
+  email: string
+  roles?: UserRole[]
+  createdAt: string
+  updatedAt: string
+  active: boolean
+}
+
+interface SimpleRole {
+  id: string
+  name: string
+}
+
+// Componente de tarjeta para mobile
+function UserCard({ user, onEdit }: { user: User; onEdit: (user: User) => void }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900">{user.name}</h3>
+          <p className="text-sm text-gray-500 mt-1">{user.email}</p>
+        </div>
+      </div>
+
+      {user.roles && user.roles.length > 0 && (
+        <div>
+          <p className="text-xs text-gray-500">Rol</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {user.roles.map((userRole) => (
+              <span
+                key={`${user.id}-${userRole.roleId}`}
+                className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+              >
+                {userRole.role.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="pt-2 border-t">
+        <button
+          onClick={() => onEdit(user)}
+          className="w-full flex items-center justify-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600 border border-blue-200"
+        >
+          <Edit className="h-4 w-4" />
+          <span className="text-sm font-medium">Editar</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<any[]>([])
-  const [roles, setRoles] = useState<any[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<SimpleRole[]>([])
   const [search, setSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -22,16 +95,16 @@ export default function UsuariosPage() {
     roleId: "",
   })
 
-  const itemsPerPage = 5
+  const itemsPerPage = 10
 
-  // -------- Normalizador para búsqueda con tildes ----------
+  // Normalizador para búsqueda con tildes
   const normalize = (text: string) =>
     text
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
 
-  // -------- Obtener usuarios ----------
+  // Obtener usuarios
   const fetchUsers = async () => {
     setLoading(true)
     try {
@@ -49,16 +122,18 @@ export default function UsuariosPage() {
         setUsers(Array.isArray(data) ? data : data.data || [])
       } else {
         setUsers([])
+        toast.error("Error al cargar usuarios")
       }
     } catch (err) {
       console.error("Error fetching users:", err)
       setUsers([])
+      toast.error("Error al cargar usuarios")
     } finally {
       setLoading(false)
     }
   }
 
-  // -------- Obtener roles ----------
+  // Obtener roles
   const fetchRoles = async () => {
     try {
       const token = sessionStorage.getItem("token")
@@ -87,7 +162,12 @@ export default function UsuariosPage() {
     fetchRoles()
   }, [])
 
-  // -------- Filtro de búsqueda ----------
+  // Resetear página al buscar
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
+
+  // Filtro de búsqueda
   const filteredUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
 
@@ -99,23 +179,37 @@ export default function UsuariosPage() {
     )
   }, [users, search])
 
-  // -------- Paginación ----------
+  // Paginación
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
-  // -------- Crear o editar usuario ----------
-  const handleSubmit = async (e: any) => {
+  // Crear o editar usuario
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!form.name || !form.email || !form.roleId) {
+      toast.error("Completa todos los campos obligatorios")
+      return
+    }
+
+    if (!isEdit && !form.password) {
+      toast.error("La contraseña es obligatoria")
+      return
+    }
+
     setLoading(true)
 
-    const body = {
+    const body: any = {
       name: form.name,
       email: form.email,
-      password: form.password,
       roleIds: [form.roleId],
+    }
+
+    if (form.password) {
+      body.password = form.password
     }
 
     try {
@@ -128,7 +222,7 @@ export default function UsuariosPage() {
 
       const method = isEdit ? "PUT" : "POST"
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -137,11 +231,15 @@ export default function UsuariosPage() {
         body: JSON.stringify(body),
       })
 
+      if (!res.ok) throw new Error("Error al guardar usuario")
+
+      toast.success(isEdit ? "Usuario actualizado exitosamente" : "Usuario creado exitosamente")
       setIsModalOpen(false)
       setForm({ name: "", email: "", password: "", roleId: "" })
       fetchUsers()
     } catch (error) {
       console.error("Error guardando usuario:", error)
+      toast.error("Error al guardar usuario")
     } finally {
       setLoading(false)
     }
@@ -154,182 +252,274 @@ export default function UsuariosPage() {
     setIsModalOpen(true)
   }
 
-  const openEdit = (user: any) => {
+  const openEdit = (user: User) => {
     setIsEdit(true)
     setSelectedUserId(user.id)
     setForm({
       name: user.name,
       email: user.email,
       password: "",
-      roleId: user.roles?.[0]?.id || "",
+      roleId: user.roles?.[0]?.roleId || "",
     })
     setIsModalOpen(true)
   }
 
+  // Generar números de página
+  const getPageNumbers = () => {
+    const pages: Array<number | string> = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i)
+        pages.push("ellipsis-end")
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push("ellipsis-start")
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        pages.push("ellipsis-start")
+        pages.push(currentPage - 1)
+        pages.push(currentPage)
+        pages.push(currentPage + 1)
+        pages.push("ellipsis-end")
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <DashboardHeader />
 
-      <main className="flex-1 p-6 max-w-6xl mx-auto w-full space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Usuarios</h1>
-          <button
-            onClick={openCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            Crear usuario
-          </button>
-        </div>
-
-        {/* Buscador */}
-        <input
-          type="text"
-          placeholder="Buscar usuario..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-
-        {/* Tabla */}
-        <div className="border rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100 text-left">
-              <tr>
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={3} className="p-6 text-center">
-                    Cargando...
-                  </td>
-                </tr>
-              ) : paginatedUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-6 text-center text-gray-500">
-                    Sin usuarios para mostrar
-                  </td>
-                </tr>
-              ) : (
-                paginatedUsers.map((user) => (
-                  <tr key={user.id} className="border-t">
-                    <td className="p-3">{user.name}</td>
-                    <td className="p-3">{user.email}</td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => openEdit(user)}
-                        className="text-blue-600"
-                      >
-                        ✏️ Editar
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex gap-2">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1 border rounded ${
-                  currentPage === i + 1 ? "bg-blue-600 text-white" : ""
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white p-6 rounded w-full max-w-md space-y-4"
-          >
-            <h2 className="text-lg font-bold">
-              {isEdit ? "Editar usuario" : "Crear usuario"}
-            </h2>
-
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={form.name}
-              onChange={(e) =>
-                setForm({ ...form, name: e.target.value })
-              }
-              className="w-full p-2 border rounded"
-              required
-            />
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
-              className="w-full p-2 border rounded"
-              required
-            />
-
-            <input
-              type="password"
-              placeholder="Contraseña"
-              value={form.password}
-              onChange={(e) =>
-                setForm({ ...form, password: e.target.value })
-              }
-              className="w-full p-2 border rounded"
-              required={!isEdit}
-            />
-
-            <select
-              value={form.roleId}
-              onChange={(e) =>
-                setForm({ ...form, roleId: e.target.value })
-              }
-              className="w-full p-2 border rounded"
-              required
+      <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold">Usuarios</h1>
+            <Button
+              onClick={openCreate}
+              className="bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-2 w-full sm:w-auto"
             >
-              <option value="">Seleccionar rol</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
+              <Plus className="h-5 w-5" />
+              <span className="hidden sm:inline">Crear usuario</span>
+              <span className="sm:hidden">Nuevo</span>
+            </Button>
+          </div>
 
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border rounded"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Guardar
-              </button>
+          {/* Buscador */}
+          <div className="bg-white p-4 rounded-lg mb-6">
+            <div className="relative rounded-lg w-full">
+              <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar usuario..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full shadow-lg bg-white pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
+              />
             </div>
-          </form>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Cargando usuarios...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                {search ? "No hay usuarios que coincidan con tu búsqueda" : "No hay usuarios registrados"}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block bg-white rounded-lg shadow-xl overflow-hidden mb-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Nombre</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Roles</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {paginatedUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
+                          <td className="px-6 py-4 text-sm text-gray-700">{user.email}</td>
+                          <td className="px-6 py-4 text-sm">
+                            <div className="flex flex-wrap gap-1">
+                              {user.roles?.map((userRole) => (
+                                <span
+                                  key={`${user.id}-${userRole.roleId}`}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                                >
+                                  {userRole.role.name}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <button
+                              onClick={() => openEdit(user)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Editar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3 mb-6">
+                {paginatedUsers.map((user) => (
+                  <UserCard key={user.id} user={user} onEdit={openEdit} />
+                ))}
+              </div>
+
+              {/* Paginación */}
+              {filteredUsers.length > 0 && (
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm text-gray-600 text-center sm:text-left">
+                      Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                      {Math.min(currentPage * itemsPerPage, filteredUsers.length)} de {filteredUsers.length} usuarios
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((pageNum, idx) =>
+                          typeof pageNum === "string" ? (
+                            <span key={pageNum} className="px-3 py-2 text-gray-500">
+                              ...
+                            </span>
+                          ) : (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`min-w-[40px] px-3 py-2 rounded-lg font-medium transition-colors ${currentPage === pageNum ? "bg-blue-600 text-white" : "hover:bg-gray-100 text-gray-700"
+                                }`}
+                            >
+                              {pageNum}
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </main>
+      <MobileBottomNav />
+      {/* Modal */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? "Editar usuario" : "Crear usuario"}</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Nombre</label>
+              <input
+                type="text"
+                placeholder="Nombre completo"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="w-full p-2 border rounded-lg"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                type="email"
+                placeholder="correo@ejemplo.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full p-2 border rounded-lg"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Contraseña {isEdit && "(dejar vacío para no cambiar)"}
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full p-2 border rounded-lg"
+                required={!isEdit}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Rol</label>
+              <select
+                value={form.roleId}
+                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+                className="w-full p-2 border rounded-lg"
+                required
+              >
+                <option value="">Seleccionar rol</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading} className="bg-blue-700 hover:bg-blue-800 text-white">
+                {loading ? "Guardando..." : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
