@@ -55,7 +55,7 @@ import { BivooLoader } from "@/components/bivoo-loader"
 import { AuthGuard } from "@/components/auth-guard"
 import { ModuleLayout } from "@/components/module-layout"
 import { motion } from "framer-motion"
-import { ArrowLeft, Save, Send, PlusCircle, Trash2, HelpCircle, Download, Printer } from "lucide-react"
+import { ArrowLeft, Save, Send, PlusCircle, Trash2, HelpCircle, Download, Printer, ChevronRight, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
@@ -67,6 +67,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import { Monitor } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+
 export const ssr = false
 export const dynamic = "force-dynamic"
 
@@ -90,6 +92,7 @@ export default function NuevaFacturaPage() {
     ];
 
     const [showProductDropdown, setShowProductDropdown] = useState<number | null>(null); // index del item que muestra el dropdown
+    const [currentStep, setCurrentStep] = useState(1); // 1: Datos, 2: Ítems, 3: Resumen
     const [items, setItems] = useState<InvoiceItem[]>([
         {
             id: Date.now(),
@@ -154,6 +157,8 @@ export default function NuevaFacturaPage() {
     const [isSavingDraft, setIsSavingDraft] = useState(false)
     const [showDownloadDialog, setShowDownloadDialog] = useState(false)
     const [currentInvoiceId, setCurrentInvoiceId] = useState<number | null>(null)
+    const [showPreviewModal, setShowPreviewModal] = useState(false)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [orderResolution, setOrderResolution] = useState("RES-2026-001") // default
 
     const [company, setCompany] = useState<any>(null);
@@ -265,7 +270,7 @@ export default function NuevaFacturaPage() {
         const fetchUsers = async () => {
             setUsersLoading(true)
             try {
-                 const token = getToken();
+                const token = getToken();
                 const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
                 const res = await fetch(`${apiBase}users?page=1&limit=10`, {
                     method: "GET",
@@ -627,6 +632,33 @@ export default function NuevaFacturaPage() {
         setShowDownloadDialog(true)
     }
 
+    const handleShowInvoicePreview = async (invoiceId: string | number) => {
+        setIsDownloading(true);
+        try {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+            const res = await fetch(`${apiBase}invoice-documents/${invoiceId}/pdf`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${getToken()}`,
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            setShowPreviewModal(true);
+        } catch (error) {
+            console.error('Error fetching invoice preview:', error);
+            toast.error('Error al cargar la previsualización de la factura');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     const handleSaveDraft = async () => {
         console.log("Guardando borrador con payload:")
         setIsSavingDraft(true)
@@ -693,7 +725,7 @@ export default function NuevaFacturaPage() {
                     }
                 })
             }
-             const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
             const res = await fetch(`${apiBase}invoices`, {
                 method: "POST",
                 headers: myHeaders,
@@ -702,21 +734,21 @@ export default function NuevaFacturaPage() {
 
             if (!res.ok) {
                 const txt = await res.text().catch(() => "")
-                console.error("Error saving draft:", res.status, txt)
-                alert("Error guardando borrador. Revisa la consola.")
+                /*console.error("Error saving draft:", res.status, txt)*/
+                toast.error("Error guardando borrador. Revisa la consola.");
                 return
             }
 
             const created = await res.json().catch(() => null)
             if (created) {
-                alert("Borrador guardado exitosamente!")
+                toast.success("Borrador guardado exitosamente!")
                 // Store the invoice ID for downloads
                 setCurrentInvoiceId(created?.id ?? created?.invoiceId ?? null)
                 // Reset form or navigate
             }
         } catch (err) {
-            console.error("Error saving draft:", err)
-            alert("Error guardando borrador. Revisa la consola.")
+            /*console.error("Error saving draft:", err)*/
+            toast.error("Error guardando borrador. Revisa la consola.")
         } finally {
             setIsSavingDraft(false)
         }
@@ -732,8 +764,8 @@ export default function NuevaFacturaPage() {
         setIsDownloading(true)
         try {
             const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
-            const endpoint = style === 'classic' ? 'invoices/download/classic' : 'invoices/download/dian'
-            const res = await fetch(`${apiBase}${endpoint}/${currentInvoiceId}`, {
+            const endpoint = 'invoice-documents'
+            const res = await fetch(`${apiBase}${endpoint}/${currentInvoiceId}/pdf${style !== 'classic' ? '?style=dian' : ''}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`,
@@ -845,11 +877,17 @@ export default function NuevaFacturaPage() {
             }
 
             if (data.ok) {
-                toast.success(data.message || `Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? "-"})`);
+                toast.success(data.message || `Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? data?.invoice?.id ?? "-"})`);
                 console.log("Emit invoice response:", data);
 
                 // Store the invoice ID for downloads
-                setCurrentInvoiceId(data?.id ?? data?.invoiceId ?? null);
+                const newId = data?.id ?? data?.invoiceId ?? data?.invoice?.id ?? null;
+                setCurrentInvoiceId(newId);
+
+                // Show preview modal automatically
+                if (newId) {
+                    handleShowInvoicePreview(newId);
+                }
 
                 // Limpiar todos los inputs al emitir exitosamente
                 setCliente("");
@@ -913,56 +951,7 @@ export default function NuevaFacturaPage() {
         },
     }
 
-    function useIsMobile(breakpoint = 1239) {
-        const [isMobile, setIsMobile] = useState<boolean | null>(null)
-
-        useEffect(() => {
-            const check = () => setIsMobile(window.innerWidth < breakpoint)
-
-            check()
-            window.addEventListener("resize", check)
-
-            return () => window.removeEventListener("resize", check)
-        }, [breakpoint])
-
-        return isMobile
-    }
-
-    const isMobile = useIsMobile()
-
-    if (isMobile === null) return null
-
-    if (isMobile) {
-        return (
-            <div className="min-h-screen bg-white flex flex-col">
-                <DashboardHeader />
-                <main className="flex-1 overflow-y-auto ">
-                    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-                        <div className="max-w-md text-center bg-white rounded-xl shadow-sm p-6 text-gray-900">
-                            <div className="flex justify-center mb-4">
-                                <Monitor className="w-12 h-12 text-gray-400" />
-                            </div>
-
-                            <h2 className="text-sm font-semibold mb-2">
-                                Vista solo disponible en escritorio
-                            </h2>
-
-                            <p className="text-sm text-gray-600 mb-4">
-                                Este Opcion de facturación requiere una pantalla más grande para
-                                ofrecer una mejor experiencia de uso.
-                            </p>
-
-                            <p className="text-xs text-gray-400">
-                                Accede desde un computador o amplía el tamaño de tu ventana.
-                            </p>
-                        </div>
-                    </div>
-
-                </main>
-            </div >
-
-        )
-    }
+    // Mobile check removed to allow responsive view
 
 
 
@@ -970,25 +959,25 @@ export default function NuevaFacturaPage() {
 
         <div className="min-h-screen bg-white flex flex-col">
             <DashboardHeader />
-            <main className="flex-1 overflow-y-auto p-9 ">
+            <main className="flex-1 overflow-y-auto p-4 md:p-9 ">
 
                 <motion.div
                     initial="hidden"
                     animate="visible"
                     variants={containerVariants}
-                    className="max-w-6xl mx-auto p-6 shadow-xl bg-white rounded-lg  text-gray-900"
+                    className="max-w-6xl mx-auto p-4 md:p-6 shadow-xl bg-white rounded-lg text-gray-900"
                 >
                     {/* Header */}
-                    <motion.div variants={itemVariants} className="flex justify-between items-center mb-6">
+                    <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <div className="flex items-center">
                             <Link href="/">
                                 <Button variant="ghost" size="icon" className="mr-2">
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
                             </Link>
-                            <h1 className="text-2xl font-bold">Nueva Factura de Venta</h1>
+                            <h1 className="text-xl md:text-2xl font-bold">Nueva Factura de Venta</h1>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="hidden md:flex flex-wrap gap-2 w-full md:w-auto">
                             <Button variant="outline" className="flex items-center gap-1 hover:bg-[hsl(147,88%,41%)] shadow-lg  hover:text-white bg-white" onClick={handleSaveDraft} disabled={isSavingDraft}>
                                 <Save className="h-4 w-4" />
                                 {isSavingDraft ? "Guardando..." : "Guardar Borrador"}
@@ -999,7 +988,7 @@ export default function NuevaFacturaPage() {
                             </Button>
                             <Button
                                 variant="outline"
-                                className=" items-center flex gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
+                                className="hidden items-center md:hidden flex gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
                                 onClick={handleDownload}
                                 disabled={isDownloading || !currentInvoiceId}
                             >
@@ -1020,7 +1009,7 @@ export default function NuevaFacturaPage() {
                     {/* Document Type and Settings */}
                     <motion.div
                         variants={itemVariants}
-                        className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-gray-50 p-4 shadow-xl rounded-lg mb-6"
+                        className={`grid grid-cols-1 md:grid-cols-5 gap-4 bg-gray-50 p-4 shadow-xl rounded-lg mb-6 ${currentStep === 1 ? "" : "hidden md:grid"}`}
                     >
                         <div>
                             <label className="text-sm text-gray-600 block mb-2">Tipo de documento</label>
@@ -1074,9 +1063,9 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Company Info */}
-                    <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start mb-6">
+                    <motion.div variants={itemVariants} className={`flex flex-col md:flex-row justify-between items-center md:items-start mb-6 gap-6 ${currentStep === 1 ? "" : "hidden md:flex"}`}>
                         <div
-                            className="w-48 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
+                            className="w-full md:w-48 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden shrink-0"
                             onClick={() => logoInputRef.current?.click()}
                         >
                             {logoPreview || company?.logo ? (
@@ -1108,16 +1097,16 @@ export default function NuevaFacturaPage() {
                             />
                         </div>
 
-                        <div className="flex-1 px-8 my-4 md:my-0">
-                            <div className="text-center">
+                        <div className="flex-1 px-0 md:px-8 my-0 text-center md:text-left">
+                            <div className="">
                                 <h2 className="text-lg font-semibold">{company?.tradeName || company?.businessName || 'PlasticosLC'}</h2>
                                 <p className="text-gray-600">NIT: {company?.nit || '900.123.456-7'}{company?.dv ? `-${company.dv}` : ''}</p>
                                 <p className="text-gray-600">{company?.email || 'contacto@PlasticosLC.com'}</p>
                                 <p className="text-gray-600">{company?.address || 'Calle 123 #45-67, Bogotá'}</p>
                             </div>
                         </div>
-                        <div className="w-48">
-                            <div className="flex items-center gap-2 mb-2">
+                        <div className="w-full md:w-48">
+                            <div className="flex items-center justify-between md:justify-start gap-2 mb-2">
                                 <span className="font-semibold">No.</span>
                                 <span className="text-blue-600 animate-pulse">
                                     {currentInvoiceId ? `PlasticosLC-${currentInvoiceId}` : "Creando..."}
@@ -1126,11 +1115,11 @@ export default function NuevaFacturaPage() {
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
                             </div>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center justify-between md:justify-start gap-2 mb-2">
                                 <span className="font-semibold">Consecutivo:</span>
                                 <span className="animate-pulse">Creando</span>
                             </div>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center justify-between md:justify-start gap-2 mb-2">
                                 <span className="font-semibold">Estado:</span>
                                 <span className="text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full text-xs animate-pulse">No Definido</span>
                             </div>
@@ -1138,7 +1127,7 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Client Info */}
-                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <motion.div variants={itemVariants} className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 ${currentStep === 1 ? "" : "hidden md:grid"}`}>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm  text-gray-600 mb-1">Cliente *</label>
@@ -1263,14 +1252,14 @@ export default function NuevaFacturaPage() {
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-white">
+                                        <DialogContent className="w-[95vw] sm:max-w-[500px] bg-white">
                                             <DialogHeader>
                                                 <DialogTitle>Seleccionar método de pago</DialogTitle>
                                             </DialogHeader>
                                             <Tabs defaultValue="transferencia" className="w-full">
-                                                <TabsList className="grid grid-cols-4 mb-4">
+                                                <TabsList className="grid grid-cols-2 md:grid-cols-4 h-auto mb-4">
                                                     <TabsTrigger value="efectivo">Efectivo</TabsTrigger>
-                                                    <TabsTrigger value="transferencia">Transferencia</TabsTrigger>
+                                                    <TabsTrigger value="transferencia" className="text-xs md:text-sm">Transferencia</TabsTrigger>
                                                     <TabsTrigger value="tarjeta">Tarjeta</TabsTrigger>
                                                     <TabsTrigger value="cheque">Cheque</TabsTrigger>
                                                 </TabsList>
@@ -1368,51 +1357,55 @@ export default function NuevaFacturaPage() {
                         </div>
                     </motion.div>
 
-                    {/* Items Table */}
-                    <motion.div variants={itemVariants} className="mb-6">
-                        <div className="">
-                            <table className="w-full mb-4">
+                    {/* Items Table (Desktop) & Cards (Mobile) */}
+                    <motion.div variants={itemVariants} className={`mb-6 ${currentStep === 2 ? "" : "hidden md:block"}`}>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block min-h-[400px]">
+                            <table className="w-full mb-4 border-collapse">
                                 <thead>
-                                    <tr className="border-b">
-                                        <th className="text-left py-2 w-10">#</th>
-                                        <th className="text-left py-2">Referencia</th>
-                                        <th className="text-left py-2">Precio</th>
-                                        <th className="text-left py-2">Descuento</th>
-                                        <th className="text-left py-2">Impuesto</th>
-                                        <th className="text-left py-2">Descripción</th>
-                                        <th className="text-left py-2">Cantidad</th>
-                                        <th className="text-left py-2">Total</th>
-                                        <th className="text-left py-2 w-10"></th>
+                                    <tr className="border-b text-gray-400 text-xs uppercase tracking-wider">
+                                        <th className="text-left py-3 w-8 font-medium">#</th>
+                                        <th className="text-left py-3 w-48 font-medium">Referencia / Producto</th>
+                                        <th className="text-left py-3 w-32 font-medium">Precio</th>
+                                        <th className="text-left py-3 w-24 font-medium">Descuento</th>
+                                        <th className="text-left py-3 w-28 font-medium">Impuesto</th>
+                                        <th className="text-left py-3 font-medium">Descripción</th>
+                                        <th className="text-left py-3 w-24 font-medium">Cantidad</th>
+                                        <th className="text-left py-3 w-32 font-medium">Total</th>
+                                        <th className="text-left py-3 w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {items.map((item, index) => (
                                         <motion.tr
                                             key={item.id}
-                                            className="border-b"
+                                            className="border-b transition-colors hover:bg-gray-50/50"
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ duration: 0.3 }}
                                         >
-                                            <td className="py-2">{index + 1}</td>
-                                            <td className="py-2">
+                                            <td className="py-4 text-sm text-gray-500">{index + 1}</td>
+                                            <td className="py-4 pr-2">
                                                 <div className="relative">
                                                     <input
                                                         type="text"
-                                                        className="border bg-white rounded px-2 py-1 w-full"
+                                                        className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
                                                         value={item.referencia}
                                                         onChange={(e) => {
                                                             updateItem(item.id, "referencia", e.target.value);
                                                             setShowProductDropdown(index);
                                                         }}
                                                         onFocus={() => setShowProductDropdown(index)}
-                                                        onBlur={() => setTimeout(() => setShowProductDropdown(null), 150)}
-                                                        placeholder="Buscar producto por nombre, sku o id..."
+                                                        onBlur={() => setTimeout(() => setShowProductDropdown(null), 200)}
+                                                        placeholder="Buscar prod..."
                                                     />
                                                     {showProductDropdown === index && item.referencia && (
-                                                        <ul className="absolute z-50 left-0 right-0 bg-white border rounded mt-1 max-h-48 overflow-y-auto shadow-lg">
+                                                        <ul className="absolute z-[100] left-0 right-0 bg-white border border-gray-200 rounded-lg mt-2 max-h-64 overflow-y-auto shadow-2xl min-w-[350px] animate-in fade-in zoom-in-95 duration-200">
                                                             {loadingProducts ? (
-                                                                <li className="px-3 py-2 text-gray-500">Cargando productos...</li>
+                                                                <li className="px-4 py-3 text-gray-500 text-sm flex items-center gap-2">
+                                                                    <div className="animate-spin h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                                                    Buscando...
+                                                                </li>
                                                             ) : (
                                                                 productsList
                                                                     .filter((p) => {
@@ -1427,14 +1420,21 @@ export default function NuevaFacturaPage() {
                                                                     .map((p) => (
                                                                         <li
                                                                             key={p.id}
-                                                                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
                                                                             onMouseDown={() => {
                                                                                 updateItem(item.id, "referencia", { __selectedProduct: true, productId: p.id, productName: p.name, productSku: p.sku, precio: p.price });
                                                                                 setShowProductDropdown(null);
                                                                             }}
                                                                         >
-                                                                            <div className="font-medium">{p.name} <span className="text-xs text-gray-400">({p.sku})</span></div>
-                                                                            <div className="text-xs text-gray-500">ID: {p.id} • Precio: ${p.price}</div>
+                                                                            <div className="flex justify-between items-start mb-0.5">
+                                                                                <span className="font-semibold text-gray-900 text-sm">{p.name}</span>
+                                                                                <span className="text-blue-600 font-bold text-sm">${p.price}</span>
+                                                                            </div>
+                                                                            <div className="flex gap-3 text-[10px] text-gray-400 font-medium uppercase">
+                                                                                <span>SKU: {p.sku}</span>
+                                                                                <span>•</span>
+                                                                                <span>Ref: {p.id.slice(0, 8)}</span>
+                                                                            </div>
                                                                         </li>
                                                                     ))
                                                             )}
@@ -1442,10 +1442,10 @@ export default function NuevaFacturaPage() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="py-2">
+                                            <td className="py-4 px-2">
                                                 <input
                                                     type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                                     value={item.precio}
                                                     min={0}
                                                     step={0.01}
@@ -1453,19 +1453,19 @@ export default function NuevaFacturaPage() {
                                                     onChange={(e) => updateItem(item.id, "precio", e.target.value)}
                                                 />
                                             </td>
-                                            <td className="py-2 ">
+                                            <td className="py-4 px-2">
                                                 <input
                                                     type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-600"
                                                     value={item.descuento}
                                                     min={0}
                                                     step={0.01}
                                                     onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
                                                 />
                                             </td>
-                                            <td className="py-2 ">
+                                            <td className="py-4 px-2">
                                                 <select
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
                                                     value={item.impuesto}
                                                     onChange={(e) => updateItem(item.id, "impuesto", e.target.value)}
                                                 >
@@ -1474,18 +1474,19 @@ export default function NuevaFacturaPage() {
                                                     <option>19%</option>
                                                 </select>
                                             </td>
-                                            <td className="py-2">
+                                            <td className="py-4 px-2">
                                                 <input
                                                     type="text"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                                     value={item.descripcion}
+                                                    placeholder="Añadir nota..."
                                                     onChange={(e) => updateItem(item.id, "descripcion", e.target.value)}
                                                 />
                                             </td>
-                                            <td className="py-2">
+                                            <td className="py-4 px-2">
                                                 <input
                                                     type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border border-gray-200 bg-white rounded-md px-3 py-2 w-full text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center"
                                                     value={item.cantidad}
                                                     min={0}
                                                     step={1}
@@ -1493,9 +1494,13 @@ export default function NuevaFacturaPage() {
                                                     onChange={(e) => updateItem(item.id, "cantidad", e.target.value)}
                                                 />
                                             </td>
-                                            <td className="py-2">{formatCurrency(calculateItemTotal(item))}</td>
-                                            <td className="py-2">
-                                                <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700">
+                                            <td className="py-4 px-2 whitespace-nowrap text-sm font-bold text-gray-900">{formatCurrency(calculateItemTotal(item))}</td>
+                                            <td className="py-4 text-center">
+                                                <button
+                                                    onClick={() => removeItem(item.id)}
+                                                    className="text-gray-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"
+                                                    title="Eliminar ítem"
+                                                >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </td>
@@ -1504,20 +1509,151 @@ export default function NuevaFacturaPage() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden space-y-4 mb-4">
+                            {items.map((item, index) => (
+                                <motion.div
+                                    key={item.id}
+                                    className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col gap-3"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded">#{index + 1}</span>
+                                        <button onClick={() => removeItem(item.id)} className="text-red-500 p-1">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    {/* Product / Reference */}
+                                    <div className="relative">
+                                        <label className="text-xs text-gray-500 block mb-1">Producto / Referencia</label>
+                                        <input
+                                            type="text"
+                                            className="border bg-white rounded px-3 py-2 w-full"
+                                            value={item.referencia}
+                                            onChange={(e) => {
+                                                updateItem(item.id, "referencia", e.target.value);
+                                                setShowProductDropdown(index);
+                                            }}
+                                            onFocus={() => setShowProductDropdown(index)}
+                                            onBlur={() => setTimeout(() => setShowProductDropdown(null), 150)}
+                                            placeholder="Buscar producto..."
+                                        />
+                                        {showProductDropdown === index && item.referencia && (
+                                            <ul className="absolute z-50 left-0 right-0 bg-white border rounded mt-1 max-h-48 overflow-y-auto shadow-lg">
+                                                {loadingProducts ? (
+                                                    <li className="px-3 py-2 text-gray-500">Cargando...</li>
+                                                ) : (
+                                                    productsList
+                                                        .filter((p) => {
+                                                            const q = item.referencia.toLowerCase();
+                                                            return (
+                                                                (p.name && p.name.toLowerCase().includes(q)) ||
+                                                                (p.sku && p.sku.toLowerCase().includes(q))
+                                                            );
+                                                        })
+                                                        .slice(0, 10)
+                                                        .map((p) => (
+                                                            <li
+                                                                key={p.id}
+                                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-0"
+                                                                onMouseDown={() => {
+                                                                    updateItem(item.id, "referencia", { __selectedProduct: true, productId: p.id, productName: p.name, productSku: p.sku, precio: p.price });
+                                                                    setShowProductDropdown(null);
+                                                                }}
+                                                            >
+                                                                <div className="font-medium text-sm">{p.name}</div>
+                                                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                                                    <span>{p.sku}</span>
+                                                                    <span>${p.price}</span>
+                                                                </div>
+                                                            </li>
+                                                        ))
+                                                )}
+                                            </ul>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Precio</label>
+                                            <input
+                                                type="number"
+                                                className="border bg-white rounded px-3 py-2 w-full"
+                                                value={item.precio}
+                                                onChange={(e) => updateItem(item.id, "precio", e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Cantidad</label>
+                                            <input
+                                                type="number"
+                                                className="border bg-white rounded px-3 py-2 w-full"
+                                                value={item.cantidad}
+                                                onChange={(e) => updateItem(item.id, "cantidad", e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Descuento</label>
+                                            <input
+                                                type="number"
+                                                className="border bg-white rounded px-3 py-2 w-full"
+                                                value={item.descuento}
+                                                onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Impuesto</label>
+                                            <select
+                                                className="border bg-white rounded px-3 py-2 w-full"
+                                                value={item.impuesto}
+                                                onChange={(e) => updateItem(item.id, "impuesto", e.target.value)}
+                                            >
+                                                <option>0%</option>
+                                                <option>5%</option>
+                                                <option>19%</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Descripción</label>
+                                        <input
+                                            type="text"
+                                            className="border bg-white rounded px-3 py-2 w-full"
+                                            value={item.descripcion}
+                                            onChange={(e) => updateItem(item.id, "descripcion", e.target.value)}
+                                            placeholder="Detalles adicionales..."
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-between items-center pt-2 border-t mt-1">
+                                        <span className="font-semibold text-gray-700">Total Ítem</span>
+                                        <span className="font-bold text-lg text-[hsl(209,83%,23%)]">{formatCurrency(calculateItemTotal(item))}</span>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+
                         <motion.button
                             onClick={addItem}
-                            className="flex items-center gap-2 text-[hsl(209,83%,23%)] hover:text-[hsl(209,84%,15%)]"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                            className="w-full md:w-auto flex items-center justify-center gap-2 text-[hsl(209,83%,23%)] hover:text-[hsl(209,84%,15%)] border border-dashed border-[hsl(209,83%,23%)] md:border-none p-3 md:p-0 rounded-lg hover:bg-blue-50 md:hover:bg-transparent transition-colors"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                         >
-                            <PlusCircle className="w-4 h-4" />
-                            <span>Agregar ítem</span>
+                            <PlusCircle className="w-5 h-5 md:w-4 md:h-4" />
+                            <span className="font-medium">Agregar ítem</span>
                         </motion.button>
                     </motion.div>
 
                     {/* Totals */}
-                    <motion.div variants={itemVariants} className="flex justify-end mb-6">
-                        <div className="w-64 space-y-2">
+                    <motion.div variants={itemVariants} className={`flex justify-end mb-6 ${currentStep === 3 ? "" : "hidden md:flex"}`}>
+                        <div className="w-full md:w-64 space-y-2 bg-gray-50 p-4 rounded-lg md:bg-transparent md:p-0">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(subtotal + descuento)}</span>
@@ -1538,9 +1674,9 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Signature and Terms */}
-                    <motion.div variants={itemVariants} className="grid  grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                    <motion.div variants={itemVariants} className={`grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 ${currentStep === 3 ? "" : "hidden md:grid"}`}>
                         <div
-                            className="border-2 border-dashed border-gray-300 h-32 flex items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
+                            className="hidden md:flex border-2 border-dashed border-gray-300 h-32 items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
                             onClick={() => signatureInputRef.current?.click()}
                         >
                             {signaturePreview ? (
@@ -1838,7 +1974,7 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Retenciones */}
-                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                    <motion.div variants={itemVariants} className={`mt-6 border-t pt-4 ${currentStep === 3 ? "" : "hidden md:block"}`}>
                         <h3 className="font-semibold mb-4">Retenciones</h3>
                         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                             <div>
@@ -1889,7 +2025,7 @@ export default function NuevaFacturaPage() {
                     </motion.div>
 
                     {/* Notes */}
-                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                    <motion.div variants={itemVariants} className={`mt-6 border-t pt-4 ${currentStep === 3 ? "" : "hidden md:block"}`}>
                         <h3 className="font-semibold mb-2">Notas internas</h3>
                         <textarea
                             className="w-full bg-white border rounded p-2 h-24 text-sm text-gray-600"
@@ -1898,6 +2034,33 @@ export default function NuevaFacturaPage() {
                             onChange={(e) => setNotes(e.target.value)}
                         ></textarea>
                     </motion.div>
+
+                    {/* Spacer to prevent content from being hidden behind sticky nav */}
+                    <div className="md:hidden h-16"></div>
+
+                    {/* Mobile Wizard Navigation - Adjusted bottom to account for MobileBottomNav (h-16) */}
+                    <div className="md:hidden flex justify-between mt-6 pt-4 border-t sticky bottom-16 bg-white p-4 -mx-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+                        {currentStep > 1 && (
+                            <Button variant="outline" onClick={() => setCurrentStep(prev => prev - 1)}>
+                                <ChevronLeft className="w-4 h-4 mr-1" /> Atrás
+                            </Button>
+                        )}
+
+                        {currentStep < 3 ? (
+                            <Button className="ml-auto" onClick={() => setCurrentStep(prev => prev + 1)}>
+                                Siguiente <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                        ) : (
+                            <div className="flex gap-2 ml-auto">
+                                <Button variant="outline" onClick={handleSaveDraft} disabled={isSavingDraft}>
+                                    <Save className="w-4 h-4 mr-1" /> Guardar
+                                </Button>
+                                <Button onClick={handleEmitInvoice} disabled={isEmitting} className="hidden">
+                                    <Send className="w-4 h-4 mr-1" /> Emitir
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </motion.div>
 
                 {/* Download Dialog */}
@@ -1927,8 +2090,35 @@ export default function NuevaFacturaPage() {
                         </div>
                     </DialogContent>
                 </Dialog>
+                {/* Preview Modal */}
+                <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+                    <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-white p-0 overflow-hidden">
+                        <DialogHeader className="p-4 border-b">
+                            <DialogTitle>Previsualización de Factura</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex-1 w-full h-full">
+                            {previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-full h-[calc(90vh-80px)] border-none"
+                                    title="Invoice Preview"
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <p>Cargando previsualización...</p>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter className="p-4 border-t bg-gray-50">
+                            <Button onClick={() => setShowPreviewModal(false)}>Cerrar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
             </main>
+            <div className="md:hidden">
+                <MobileBottomNav />
+            </div>
         </div>
 
     )

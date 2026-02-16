@@ -26,29 +26,29 @@ import {
    NAV DATA
 ───────────────────────────────────────────── */
 const navItems = [
-  { icon: FileText,     label: "Facturas",        section: "principal", href: "/" },
-  { icon: ShoppingCart, label: "Compras",          section: "principal", href: "/compras" },
-  { icon: BarChart3,    label: "Reportes",         section: "gestion",   href: "/reportes" },
-  { icon: Users,        label: "Clientes",         section: "gestion",   href: "/clientes" },
-  { icon: FolderOpen,   label: "Productos",        section: "gestion",   href: "/productos" },
-  { icon: Calculator,   label: "Proveedores",      section: "gestion",   href: "/proveedores" },
-  { icon: CreditCard,   label: "Usuarios",         section: "gestion",   href: "/usuarios" },
-  { icon: Settings,     label: "Configuración",    section: "otros",     href: "/configuracion" },
-  { icon: HelpCircle,   label: "Centro de Ayuda",  section: "otros",     href: "/ayuda" },
+  { icon: FileText, label: "Facturas", section: "principal", href: "/" },
+  { icon: ShoppingCart, label: "Compras", section: "principal", href: "/compras" },
+  { icon: BarChart3, label: "Reportes", section: "gestion", href: "/reportes" },
+  { icon: Users, label: "Clientes", section: "gestion", href: "/clientes" },
+  { icon: FolderOpen, label: "Productos", section: "gestion", href: "/productos" },
+  { icon: Calculator, label: "Proveedores", section: "gestion", href: "/proveedores" },
+  { icon: CreditCard, label: "Usuarios", section: "gestion", href: "/usuarios" },
+  { icon: Settings, label: "Configuración", section: "otros", href: "/configuracion" },
+  { icon: HelpCircle, label: "Centro de Ayuda", section: "otros", href: "/ayuda" },
 ]
 
 const SECTIONS = [
   { key: "principal", label: "Principal" },
-  { key: "gestion",   label: "Gestión" },
-  { key: "otros",     label: "Otros" },
+  { key: "gestion", label: "Gestión" },
+  { key: "otros", label: "Otros" },
 ]
 
 // Bottom nav tabs (mobile only)
 const mainTabs = [
-  { icon: FileText,     label: "Facturas",  href: "/" },
-  { icon: ShoppingCart, label: "Compras",   href: "/compras" },
-  { icon: Users,        label: "Clientes",  href: "/clientes" },
-  { icon: FolderOpen,   label: "Productos", href: "/productos" },
+  { icon: FileText, label: "Facturas", href: "/" },
+  { icon: ShoppingCart, label: "Compras", href: "/compras" },
+  { icon: Users, label: "Clientes", href: "/clientes" },
+  { icon: FolderOpen, label: "Productos", href: "/productos" },
 ]
 
 /* ─────────────────────────────────────────────
@@ -115,8 +115,8 @@ function DesktopSidebar({
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[hsl(209,79%,27%)] flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-sm">PLC</span>
+                <div className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center shadow-lg p-1">
+                  <img src="/Logo-PlasticosLC.png" alt="Logo PlásticosLC" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <p className="text-white font-bold text-sm leading-tight">PlásticosLC</p>
@@ -153,11 +153,10 @@ function DesktopSidebar({
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.03 + 0.05 }}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${
-                              active
-                                ? "bg-[hsl(209,79%,35%,0.15)] text-[hsl(209,79%,65%)] font-semibold"
-                                : "text-[hsl(228,5%,60%)] hover:text-white hover:bg-white/5"
-                            }`}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${active
+                              ? "bg-[hsl(209,79%,35%,0.15)] text-[hsl(209,79%,65%)] font-semibold"
+                              : "text-[hsl(228,5%,60%)] hover:text-white hover:bg-white/5"
+                              }`}
                           >
                             <item.icon
                               className={`h-[18px] w-[18px] shrink-0 ${active ? "stroke-[2.5]" : ""}`}
@@ -240,8 +239,8 @@ export function DashboardHeader() {
 
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[hsl(209,79%,27%)] hidden sm:flex items-center justify-center">
-                <span className="text-white font-bold text-xs">PLC</span>
+              <div className="w-9 h-9 rounded-lg bg-white overflow-hidden hidden sm:flex items-center justify-center p-1 border border-border">
+                <img src="/Logo-PlasticosLC.png" alt="Logo PlásticosLC" className="w-full h-full object-contain" />
               </div>
               <span className="text-[hsl(209,79%,27%)] font-bold text-sm font-sans">
                 PlásticosLC
@@ -259,11 +258,10 @@ export function DashboardHeader() {
                       key={item.label}
                       type="button"
                       onClick={() => handleNavigation(item.href)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                        active
-                          ? "bg-[hsl(209,79%,35%)] text-white shadow-sm"
-                          : "text-gray-500 hover:text-white hover:bg-[hsl(209,79%,35%)]"
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${active
+                        ? "bg-[hsl(209,79%,35%)] text-white shadow-sm"
+                        : "text-gray-500 hover:text-white hover:bg-[hsl(209,79%,35%)]"
+                        }`}
                     >
                       <item.icon className="h-4 w-4" />
                       {item.label}
@@ -352,14 +350,12 @@ export function MobileBottomNav() {
                   />
                 )}
                 <tab.icon
-                  className={`relative h-5 w-5 transition-all duration-200 ${
-                    active ? "text-[hsl(209,79%,65%)] stroke-[2.5]" : "text-[hsl(228,5%,45%)]"
-                  }`}
+                  className={`relative h-5 w-5 transition-all duration-200 ${active ? "text-[hsl(209,79%,65%)] stroke-[2.5]" : "text-[hsl(228,5%,45%)]"
+                    }`}
                 />
                 <span
-                  className={`relative text-[10px] transition-all duration-200 ${
-                    active ? "text-[hsl(209,79%,65%)] font-semibold" : "text-[hsl(228,5%,45%)] font-normal"
-                  }`}
+                  className={`relative text-[10px] transition-all duration-200 ${active ? "text-[hsl(209,79%,65%)] font-semibold" : "text-[hsl(228,5%,45%)] font-normal"
+                    }`}
                 >
                   {tab.label}
                 </span>
@@ -406,8 +402,8 @@ export function MobileBottomNav() {
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[hsl(209,79%,27%)] flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-sm">PLC</span>
+                  <div className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center shadow-lg p-1">
+                    <img src="/Logo-PlasticosLC.png" alt="Logo PlásticosLC" className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <p className="text-white font-bold text-sm leading-tight">PlásticosLC</p>
@@ -443,11 +439,10 @@ export function MobileBottomNav() {
                               initial={{ opacity: 0, x: -8 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: idx * 0.03 + 0.05 }}
-                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${
-                                active
-                                  ? "bg-[hsl(209,79%,35%,0.15)] text-[hsl(209,79%,65%)] font-semibold"
-                                  : "text-[hsl(228,5%,60%)] hover:text-white hover:bg-white/5"
-                              }`}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${active
+                                ? "bg-[hsl(209,79%,35%,0.15)] text-[hsl(209,79%,65%)] font-semibold"
+                                : "text-[hsl(228,5%,60%)] hover:text-white hover:bg-white/5"
+                                }`}
                             >
                               <item.icon className={`h-[18px] w-[18px] shrink-0 ${active ? "stroke-[2.5]" : ""}`} />
                               <span className="flex-1">{item.label}</span>

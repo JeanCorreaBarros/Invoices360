@@ -2,7 +2,7 @@
 
 import { DashboardHeader } from "@/components/dashboard-header"
 import { useState, useEffect } from "react"
-import { Plus, Edit, ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { Plus, Edit, ChevronLeft, ChevronRight, Search, User, ShieldCheck, Mail, Phone, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import toast from "react-hot-toast"
@@ -74,75 +74,107 @@ function CreateSupplierModal({ isOpen, onClose, onSupplierCreated }: { isOpen: b
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-white max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nuevo Proveedor</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="bg-white w-[calc(100%-1.5rem)] sm:max-w-xl max-h-[94dvh] overflow-hidden rounded-3xl p-0 border-none shadow-2xl flex flex-col">
+        <div className="px-6 py-5 bg-[hsl(209,79%,27%,0.02)] border-b border-gray-100 flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium mb-1">Nombre</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
+            <DialogTitle className="text-xl font-black text-[hsl(209,79%,27%)]">Nuevo Proveedor</DialogTitle>
+            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Gestión de suministros</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre / Razón Social</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <User size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">NIT</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.nit}
+                    onChange={(e) => setForm({ ...form, nit: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Phone size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Email</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Dirección</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">NIT</label>
-            <input
-              type="text"
-              value={form.nit}
-              onChange={(e) => setForm({ ...form, nit: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Teléfono</label>
-            <input
-              type="text"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Dirección</label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-12 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all">
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading} className="bg-blue-700 hover:bg-blue-800 text-white">
-              {loading ? "Creando..." : "Crear"}
+            <Button type="submit" disabled={loading} className="flex-[2] h-12 bg-[hsl(209,79%,27%)] hover:bg-[hsl(209,79%,32%)] text-white font-black rounded-xl transition-all shadow-lg active:scale-[0.98]">
+              {loading ? "Creando..." : "Crear Proveedor"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -204,75 +236,107 @@ function EditSupplierModal({ isOpen, supplier, onClose, onSupplierUpdated }: { i
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-white max-w-md">
-        <DialogHeader>
-          <DialogTitle>Editar Proveedor</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="bg-white w-[calc(100%-1.5rem)] sm:max-w-xl max-h-[94dvh] overflow-hidden rounded-3xl p-0 border-none shadow-2xl flex flex-col">
+        <div className="px-6 py-5 bg-[hsl(209,79%,27%,0.05)] border-b border-gray-100 flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium mb-1">Nombre</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
+            <DialogTitle className="text-xl font-black text-[hsl(209,79%,20%)]">Editar Proveedor</DialogTitle>
+            <p className="text-[11px] text-[hsl(209,79%,40%)] font-bold uppercase tracking-widest mt-0.5">ID: {supplier?.id}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre / Razón Social</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <User size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">NIT</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.nit}
+                    onChange={(e) => setForm({ ...form, nit: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Phone size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Email</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Dirección</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">NIT</label>
-            <input
-              type="text"
-              value={form.nit}
-              onChange={(e) => setForm({ ...form, nit: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Teléfono</label>
-            <input
-              type="text"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Dirección</label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-12 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all">
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading} className="bg-blue-700 hover:bg-blue-800 text-white">
-              {loading ? "Actualizando..." : "Actualizar"}
+            <Button type="submit" disabled={loading} className="flex-[2] h-12 bg-[hsl(209,79%,20%)] hover:bg-[hsl(209,79%,25%)] text-white font-black rounded-xl transition-all shadow-lg active:scale-[0.98]">
+              {loading ? "Actualizando..." : "Actualizar Proveedor"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

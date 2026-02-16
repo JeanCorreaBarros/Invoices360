@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type { Invoice } from "@/lib/invoice-data"
-import { Edit3, Trash2, Send, ArrowUpRight, Loader2, MoreVertical } from "lucide-react"
+import { Edit3, Trash2, Send, ArrowUpRight, Loader2, MoreVertical, Download } from "lucide-react"
 import { InvoiceEditDialog } from "./invoice-edit-dialog"
 import { toast } from "react-hot-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,16 +12,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface InvoiceDetailProps {
   invoice: Invoice
+  onRefresh?: () => void
 }
 
-export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
+export function InvoiceDetail({ invoice, onRefresh }: InvoiceDetailProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState(invoice.status)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false)
 
   const statusToApi = {
     "Draft": "DRAFT",
@@ -65,6 +75,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       if (response.ok) {
         setSelectedStatus(newStatus)
         toast.success('Estado actualizado exitosamente')
+        onRefresh?.()
       } else {
         toast.error('Error al actualizar el estado')
       }
@@ -76,6 +87,11 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   }
 
   const handleSendEmail = async () => {
+    if (!invoice.email) {
+      toast.error('El cliente no tiene un correo electrónico asociado')
+      return
+    }
+
     setIsSending(true)
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/"
@@ -85,7 +101,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: "jeancorrea1000@gmail.com",
+          email: invoice.email,
           style: "modern"
         })
       })
@@ -99,6 +115,49 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       toast.error('Error de red')
     } finally {
       setIsSending(false)
+    }
+  }
+
+  const downloadInvoice = async (style: 'classic' | 'dian') => {
+    if (!invoice.id) {
+      toast.error('No hay una factura para descargar')
+      setShowDownloadDialog(false)
+      return
+    }
+
+    setIsDownloading(true)
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+      const token = sessionStorage.getItem("token")
+      const endpoint = style === 'classic' ? 'invoice-documents' : 'invoice-documents'
+      const res = await fetch(`${apiBase}${endpoint}/${invoice.id}/pdf${style !== 'classic' ? '?style=dian' : ''}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `invoice-${style}-${invoice.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success(`Factura descargada en estilo ${style}`)
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      toast.error('Error al descargar la factura')
+    } finally {
+      setIsDownloading(false)
+      setShowDownloadDialog(false)
     }
   }
 
@@ -139,26 +198,20 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                     }
                     {isSending ? "Enviando..." : "Enviar por email"}
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Eliminar
+                  <DropdownMenuItem onClick={() => setShowDownloadDialog(true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
-          {/* Segunda fila: Empresa y Cliente */}
-          <div className="grid grid-cols-2 gap-3 md:flex md:gap-6">
+          {/* Segunda fila: Cliente y Empresa */}
+          <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-xs text-gray-600 font-sans mb-0.5">Empresa</span>
-              <span className="text-sm font-semibold font-sans text-gray-900 truncate">
-                {invoice.company}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs text-gray-600 font-sans mb-0.5">Cliente</span>
-              <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-600 font-sans mb-0.5 text-left">Cliente</span>
+              <div className="flex items-center gap-1.5 justify-start">
                 <div className="w-5 h-5 rounded-full bg-[hsl(226,79%,22%)] flex items-center justify-center shrink-0">
                   <span className="text-[9px] font-bold text-white font-sans">
                     {invoice.customerAvatar}
@@ -169,6 +222,12 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 </span>
               </div>
             </div>
+            <div className="flex flex-col items-end">
+              <span className="text-xs text-gray-600 font-sans mb-0.5 text-right">Empresa</span>
+              <span className="text-sm font-semibold font-sans text-gray-900 truncate text-right">
+                {invoice.company}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -176,12 +235,12 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       {/* Body */}
       <div className="p-4 md:p-5">
 
-        {/* Line items */}
-        <div className="flex flex-col gap-2 md:gap-3">
+        {/* Line items container with scroll */}
+        <div className="flex flex-col gap-2 md:gap-3 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
           {invoice.lineItems.map((item, index) => (
             <div
               key={index}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 rounded-lg md:rounded-xl bg-gradient-to-r from-[#295582] to-[#1e4166] hover:shadow-md transition-all"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 rounded-lg md:rounded-xl bg-gradient-to-r from-[#295582] to-[#1e4166] hover:shadow-md transition-all shrink-0"
             >
               <div className="flex items-center gap-2 mb-2 sm:mb-0">
                 <span className="text-gray-300 text-xs font-sans">$</span>
@@ -227,17 +286,18 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <button
               type="button"
               onClick={() => setIsEditDialogOpen(true)}
-              className="p-2 rounded-lg text-gray-600 hidden lg:flex hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg text-gray-600 flex hover:text-gray-900 hover:bg-gray-100 transition-colors"
               aria-label="Editar factura"
             >
               <Edit3 className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="p-2 rounded-lg hidden text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
-              aria-label="Eliminar factura"
+              onClick={() => setShowDownloadDialog(true)}
+              className="p-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              aria-label="Descargar factura"
             >
-              <Trash2 className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -257,7 +317,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             </button>
           </div>
           <Select value={selectedStatus} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
-            <SelectTrigger className="w-[180px] hidden lg:flex bg-[hsl(209,83%,23%)] text-white border-none">
+            <SelectTrigger className="w-[180px] hidden md:flex bg-[hsl(209,83%,23%)] text-white border-none">
               <SelectValue placeholder="Seleccionar estado" />
             </SelectTrigger>
             <SelectContent>
@@ -297,7 +357,36 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         invoiceId={invoice.id}
         isOpen={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
+        onSave={() => window.location.reload()}
       />
+
+      {/* Download Dialog */}
+      <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
+        <DialogContent className="bg-white z-[100]">
+          <DialogHeader>
+            <DialogTitle>Seleccionar estilo de descarga</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <p className="text-gray-600">¿En qué estilo deseas descargar la factura?</p>
+            <div className="flex gap-4">
+              <Button
+                onClick={() => downloadInvoice('classic')}
+                disabled={isDownloading}
+                className="flex-1"
+              >
+                {isDownloading ? "Descargando..." : "Estilo Clásico"}
+              </Button>
+              <Button
+                onClick={() => downloadInvoice('dian')}
+                disabled={isDownloading}
+                className="flex-1"
+              >
+                {isDownloading ? "Descargando..." : "Estilo DIAN"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

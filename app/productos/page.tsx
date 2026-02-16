@@ -2,7 +2,7 @@
 
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PlcLoader } from "@/components/plc-loader"
-import { Plus, Search, Edit, Power, ChevronLeft, ChevronRight, Package, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
+import { Plus, Search, Edit, Power, ChevronLeft, ChevronRight, Package, AlertTriangle, CheckCircle, XCircle, X, Tag, DollarSign, Layers } from "lucide-react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -102,44 +102,109 @@ function ProductCreateModal({ onProductCreated }: { onProductCreated: () => void
           <span className="sm:hidden">Nuevo</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-white rounded-2xl border-0 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold">Nuevo Producto</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {[
-            { name: "name", label: "Nombre", type: "text" },
-            { name: "sku", label: "SKU", type: "text" },
-            { name: "price", label: "Precio", type: "number" },
-            { name: "stock", label: "Stock", type: "number" },
-          ].map((f) => (
-            <div key={f.name} className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider">{f.label}</label>
-              <input
-                name={f.name}
-                type={f.type}
-                min={f.type === "number" ? "0" : undefined}
-                value={(form as any)[f.name]}
-                onChange={handleChange}
-                required
-                className={fieldClass}
-              />
+      <DialogContent className="bg-white w-[calc(100%-1.5rem)] sm:max-w-xl max-h-[94dvh] overflow-hidden rounded-3xl p-0 border-none shadow-2xl flex flex-col">
+        <div className="px-6 py-5 bg-[hsl(209,79%,27%,0.02)] border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <DialogTitle className="text-xl font-black text-[hsl(209,79%,27%)]">Nuevo Producto</DialogTitle>
+            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Gestión de catálogo</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-8 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre del Producto</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Package size={18} />
+                  </div>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    placeholder="Ej: Camiseta básica negra"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">SKU / Referencia</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Tag size={18} />
+                  </div>
+                  <input
+                    name="sku"
+                    value={form.sku}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    placeholder="TSH-001"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Precio de Venta</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[hsl(209,79%,27%)] font-bold">
+                    $
+                  </div>
+                  <input
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.price}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-bold text-gray-900"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Stock Inicial</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Layers size={18} />
+                  </div>
+                  <input
+                    name="stock"
+                    type="number"
+                    min="0"
+                    value={form.stock}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
             </div>
-          ))}
-          <DialogFooter className="pt-2 gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-[hsl(209,79%,27%)] hover:bg-[hsl(209,79%,22%)] text-white px-4 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50 transition-all"
-            >
-              {loading ? "Creando…" : "Crear Producto"}
-            </button>
+          </div>
+
+          <div className="px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-3">
             <DialogClose asChild>
-              <button type="button" className="px-4 py-2.5 rounded-xl border border-gray-200 font-semibold text-sm hover:bg-gray-50 transition-all">
+              <button
+                type="button"
+                className="flex-1 h-12 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+              >
                 Cancelar
               </button>
             </DialogClose>
-          </DialogFooter>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-[2] h-12 bg-[hsl(209,79%,27%)] hover:bg-[hsl(209,79%,32%)] text-white font-black rounded-xl transition-all shadow-lg shadow-blue-900/10 active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? "Creando producto..." : "Crear Producto"}
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -190,46 +255,104 @@ function ProductEditModal({ product, onClose, onProductUpdated }: {
 
   return (
     <Dialog open={!!product} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-white rounded-2xl border-0 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold">Editar Producto</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {[
-            { name: "name", label: "Nombre", type: "text" },
-            { name: "sku", label: "SKU", type: "text" },
-            { name: "price", label: "Precio", type: "number" },
-            { name: "stock", label: "Stock", type: "number" },
-          ].map((f) => (
-            <div key={f.name} className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider">{f.label}</label>
-              <input
-                name={f.name}
-                type={f.type}
-                min={f.type === "number" ? "0" : undefined}
-                value={(form as any)[f.name]}
-                onChange={handleChange}
-                required
-                className={fieldClass}
-              />
+      <DialogContent className="bg-white w-[calc(100%-1.5rem)] sm:max-w-xl max-h-[94dvh] overflow-hidden rounded-3xl p-0 border-none shadow-2xl flex flex-col">
+        <div className="px-6 py-5 bg-[hsl(209,79%,27%,0.05)] border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <DialogTitle className="text-xl font-black text-[hsl(209,79%,20%)]">Editar Producto</DialogTitle>
+            <p className="text-[11px] text-[hsl(209,79%,40%)] font-bold uppercase tracking-widest mt-0.5">ID: {product?.id}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-8 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre del Producto</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Package size={18} />
+                  </div>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">SKU / Referencia</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Tag size={18} />
+                  </div>
+                  <input
+                    name="sku"
+                    value={form.sku}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Precio de Venta</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[hsl(209,79%,27%)] font-bold">
+                    $
+                  </div>
+                  <input
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.price}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-bold text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Stock Actual</label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Layers size={18} />
+                  </div>
+                  <input
+                    name="stock"
+                    type="number"
+                    min="0"
+                    value={form.stock}
+                    onChange={handleChange}
+                    required
+                    className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                  />
+                </div>
+              </div>
             </div>
-          ))}
-          <DialogFooter className="pt-2 gap-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-[hsl(209,79%,27%)] hover:bg-[hsl(209,79%,22%)] text-white px-4 py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50 transition-all"
-            >
-              {loading ? "Actualizando…" : "Guardar Cambios"}
-            </button>
+          </div>
+
+          <div className="px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-gray-200 font-semibold text-sm hover:bg-gray-50 transition-all"
+              className="flex-1 h-12 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
             >
               Cancelar
             </button>
-          </DialogFooter>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-[2] h-12 bg-[hsl(209,79%,20%)] hover:bg-[hsl(209,79%,25%)] text-white font-black rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+            >
+              {loading ? "Guardando cambios..." : "Guardar Cambios"}
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -288,8 +411,8 @@ function ProductCard({ product, onEdit, onToggleStatus, index }: {
           <button
             onClick={() => onToggleStatus(product)}
             className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-semibold active:scale-95 transition-all ${product.active
-                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
           >
             <Power size={14} />
@@ -333,8 +456,8 @@ function Pagination({ page, totalPages, onChange }: { page: number; totalPages: 
             key={p}
             onClick={() => onChange(p as number)}
             className={`min-w-[36px] h-9 px-2 rounded-xl text-sm font-semibold transition-colors ${page === p
-                ? "bg-[hsl(209,79%,27%)] text-white shadow-sm"
-                : "hover:bg-gray-100 text-gray-600"
+              ? "bg-[hsl(209,79%,27%)] text-white shadow-sm"
+              : "hover:bg-gray-100 text-gray-600"
               }`}
           >
             {p}
@@ -501,8 +624,8 @@ export default function ProductosPage() {
                             <button
                               onClick={() => handleToggleStatus(product)}
                               className={`p-2 rounded-lg transition-colors ${product.active
-                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                                 }`}
                               title={product.active ? "Desactivar" : "Activar"}
                             >

@@ -25,28 +25,28 @@ import { motion, AnimatePresence } from "framer-motion"
    NAV DATA
 ───────────────────────────────────────────── */
 const mainTabs = [
-  { icon: FileText,    label: "Facturas",  href: "/" },
-  { icon: ShoppingCart,label: "Compras",   href: "/compras" },
-  { icon: Users,       label: "Clientes",  href: "/clientes" },
-  { icon: FolderOpen,  label: "Productos", href: "/productos" },
+  { icon: FileText, label: "Facturas", href: "/" },
+  { icon: ShoppingCart, label: "Compras", href: "/compras" },
+  { icon: Users, label: "Clientes", href: "/clientes" },
+  { icon: FolderOpen, label: "Productos", href: "/productos" },
 ]
 
 const allNavItems = [
-  { icon: FileText,     label: "Facturas",      section: "principal", href: "/" },
-  { icon: ShoppingCart, label: "Compras",        section: "principal", href: "/compras" },
-  { icon: BarChart3,    label: "Reportes",       section: "gestion",   href: "/reportes" },
-  { icon: Users,        label: "Clientes",       section: "gestion",   href: "/clientes" },
-  { icon: FolderOpen,   label: "Productos",      section: "gestion",   href: "/productos" },
-  { icon: Calculator,   label: "Proveedores",    section: "gestion",   href: "/proveedores" },
-  { icon: CreditCard,   label: "Usuarios",       section: "gestion",   href: "/usuarios" },
-  { icon: Settings,     label: "Configuración",  section: "otros",     href: "/configuracion" },
-  { icon: HelpCircle,   label: "Ayuda",          section: "otros",     href: "/ayuda" },
+  { icon: FileText, label: "Facturas", section: "principal", href: "/" },
+  { icon: ShoppingCart, label: "Compras", section: "principal", href: "/compras" },
+  { icon: BarChart3, label: "Reportes", section: "gestion", href: "/reportes" },
+  { icon: Users, label: "Clientes", section: "gestion", href: "/clientes" },
+  { icon: FolderOpen, label: "Productos", section: "gestion", href: "/productos" },
+  { icon: Calculator, label: "Proveedores", section: "gestion", href: "/proveedores" },
+  { icon: CreditCard, label: "Usuarios", section: "gestion", href: "/usuarios" },
+  { icon: Settings, label: "Configuración", section: "otros", href: "/configuracion" },
+  { icon: HelpCircle, label: "Ayuda", section: "otros", href: "/ayuda" },
 ]
 
 const SECTIONS = [
   { key: "principal", label: "Principal" },
-  { key: "gestion",   label: "Gestión" },
-  { key: "otros",     label: "Otros" },
+  { key: "gestion", label: "Gestión" },
+  { key: "otros", label: "Otros" },
 ]
 
 /* ─────────────────────────────────────────────
@@ -97,28 +97,26 @@ export function MobileBottomNav() {
                 className="relative flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all duration-200"
                 aria-current={active ? "page" : undefined}
               >
-                {/* Active pill background */}
+                {/* Active pill background - Institutional Blue with subtle opacity */}
                 {active && (
                   <motion.div
                     layoutId="nav-pill"
-                    className="absolute inset-x-1.5 top-1.5 h-10 rounded-2xl bg-[hsl(90,100%,50%,0.12)]"
+                    className="absolute inset-x-2 top-2 bottom-2 rounded-xl bg-[hsl(209,79%,27%,0.08)]"
                     transition={{ type: "spring", stiffness: 400, damping: 35 }}
                   />
                 )}
 
                 <tab.icon
-                  className={`relative h-5 w-5 transition-all duration-200 ${
-                    active
-                      ? "text-[hsl(90,100%,50%)] stroke-[2.5]"
+                  className={`relative h-5 w-5 transition-all duration-200 ${active
+                      ? "text-[hsl(209,79%,27%)] stroke-[2.5]"
                       : "text-[hsl(228,5%,45%)]"
-                  }`}
+                    }`}
                 />
                 <span
-                  className={`relative text-[10px] transition-all duration-200 ${
-                    active
-                      ? "text-[hsl(90,100%,50%)] font-semibold"
+                  className={`relative text-[10px] transition-all duration-200 ${active
+                      ? "text-[hsl(209,79%,27%)] font-semibold"
                       : "text-[hsl(228,5%,45%)] font-normal"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </span>
@@ -207,18 +205,17 @@ export function MobileBottomNav() {
                               initial={{ opacity: 0, x: -8 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: idx * 0.03 + 0.05 }}
-                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${
-                                active
-                                  ? "bg-[hsl(90,100%,50%,0.1)] text-[hsl(90,100%,50%)] font-semibold"
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-left w-full ${active
+                                  ? "bg-[hsl(209,79%,27%,0.12)] text-[hsl(209,79%,35%)] font-semibold"
                                   : "text-[hsl(228,5%,60%)] hover:text-white hover:bg-white/5"
-                              }`}
+                                }`}
                             >
                               <item.icon
                                 className={`h-[18px] w-[18px] shrink-0 ${active ? "stroke-[2.5]" : ""}`}
                               />
                               <span className="flex-1">{item.label}</span>
                               {active && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-[hsl(90,100%,50%)] shrink-0" />
+                                <div className="w-1 h-3 rounded-full bg-[hsl(209,79%,27%)] shrink-0" />
                               )}
                             </motion.button>
                           )
@@ -233,8 +230,8 @@ export function MobileBottomNav() {
               <div className="p-3 border-t border-white/5 space-y-1.5">
                 {/* User info row */}
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5">
-                  <div className="w-9 h-9 rounded-full bg-[hsl(90,100%,50%,0.15)] flex items-center justify-center shrink-0">
-                    <span className="text-[hsl(90,100%,50%)] text-sm font-bold">
+                  <div className="w-9 h-9 rounded-full bg-[hsl(209,79%,27%,0.15)] flex items-center justify-center shrink-0">
+                    <span className="text-[hsl(209,79%,27%)] text-sm font-bold">
                       {userInitial}
                     </span>
                   </div>

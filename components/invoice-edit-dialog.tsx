@@ -55,7 +55,7 @@ import { BivooLoader } from "@/components/bivoo-loader"
 import { AuthGuard } from "@/components/auth-guard"
 import { ModuleLayout } from "@/components/module-layout"
 import { motion } from "framer-motion"
-import { ArrowLeft, Save, Send, PlusCircle, Trash2, HelpCircle, Download, Printer } from "lucide-react"
+import { ArrowLeft, Save, Send, PlusCircle, Trash2, HelpCircle, Download, Printer, ChevronRight, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
@@ -69,10 +69,10 @@ import { Monitor } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
 
 interface InvoiceEditDialogProps {
-  invoiceId: number | string | null
-  isOpen: boolean
-  onClose: () => void
-  onSave?: () => void
+    invoiceId: number | string | null
+    isOpen: boolean
+    onClose: () => void
+    onSave?: () => void
 }
 
 export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: InvoiceEditDialogProps) {
@@ -161,6 +161,9 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
     const [isSavingDraft, setIsSavingDraft] = useState(false)
     const [showDownloadDialog, setShowDownloadDialog] = useState(false)
     const [currentInvoiceId, setCurrentInvoiceId] = useState<number | null>(null)
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [currentStep, setCurrentStep] = useState(1); // 1: Datos, 2: Ítems, 3: Resumen
 
     const [company, setCompany] = useState<any>(null);
     const logoInputRef = useRef<HTMLInputElement>(null)
@@ -233,7 +236,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         return form?.value || 1;
     };
 
-      // Función helper para obtener el plazo de pago
+    // Función helper para obtener el plazo de pago
     const getPlazoPago = (): string => {
         switch (formaPago) {
             case "Contado":
@@ -289,7 +292,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         const fetchUsers = async () => {
             setUsersLoading(true)
             try {
-                 const token = getToken();
+                const token = getToken();
                 const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
                 const res = await fetch(`${apiBase}users?page=1&limit=10`, {
                     method: "GET",
@@ -689,11 +692,43 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         }, 500)
     }
 
+    const handleShowInvoicePreview = async () => {
+        if (!invoiceId) {
+            toast.error('No hay una factura para previsualizar');
+            return;
+        }
+
+        setIsDownloading(true);
+        try {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://plasticoslc.com/api/";
+            const res = await fetch(`${apiBase}invoice-documents/${invoiceId}/pdf`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${getToken()}`,
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            setShowPreviewModal(true);
+        } catch (error) {
+            console.error('Error fetching invoice preview:', error);
+            toast.error('Error al cargar la previsualización de la factura');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     const handleDownload = () => {
         setShowDownloadDialog(true)
     }
 
-    const handleSave = async () => {
+    const handleSaveDraft = async () => {
         setIsSavingDraft(true)
         const token = getToken();
         const myHeaders = new Headers();
@@ -712,7 +747,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 orderReceiverName: cliente || "",
                 orderReceiverAddress: direccion || "",
                 orderReceiverPhone: telefono || "",
-                 orderReceiverEmail: email || "",
+                orderReceiverEmail: email || "",
                 orderTotalDesc: descuento || 0,
                 orderSubtotalBeforeTax: subtotal || 0,
                 orderTotalBeforeTax: subtotal || 0,
@@ -767,21 +802,112 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             if (!res.ok) {
                 const txt = await res.text().catch(() => "")
                 console.error("Error saving draft:", res.status, txt)
-                alert("Error guardando borrador. Revisa la consola.")
+                toast.error("Error guardando borrador. Revisa la consola.")
                 return
             }
 
             const created = await res.json().catch(() => null)
             if (created) {
-                alert("Factura actualizada exitosamente!")
+                toast.success("Borrador actualizado exitosamente!")
                 onSave?.()
                 onClose()
             }
         } catch (err) {
             console.error("Error saving draft:", err)
-            alert("Error guardando borrador. Revisa la consola.")
+            toast.error("Error guardando borrador. Revisa la consola.")
         } finally {
             setIsSavingDraft(false)
+        }
+    }
+
+    const handleEmitInvoice = async () => {
+        setIsEmitting(true)
+        const token = getToken();
+        const myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+        if (token) myHeaders.append("Authorization", `Bearer ${token}`);
+
+        try {
+            const payload = {
+                orderId: invoiceId,
+                orderPrefix: getOrderPrefix(),
+                orderResolution: "RES-2026-001",
+                userId: getUserId(),
+                orderDate: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
+                orderReceiverNit: identificacion || "",
+                orderReceiverName: cliente || "",
+                orderReceiverAddress: direccion || "",
+                orderReceiverPhone: telefono || "",
+                orderReceiverEmail: email || "",
+                orderTotalDesc: descuento || 0,
+                orderSubtotalBeforeTax: subtotal || 0,
+                orderTotalBeforeTax: subtotal || 0,
+                orderTotalTax: impuestos || 0,
+                orderTaxPer: items && items[0] ? String(items[0].impuesto).replace("%", "") : "0",
+                orderTotalAfterTax: total || 0,
+                orderAmountPaid: total || 0,
+                orderTotalAmountDue: total || 0,
+                sellerId: vendedor || "",
+                note: notes,
+                cufe: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cufe-${Date.now()}`,
+                paymentForms: getPaymentForm(),
+                paymentMethods: getPaymentMethod(),
+                retencion: retencion || "0",
+                reteica: Number(reteica) || 0,
+                reteiva: Number(reteiva) || 0,
+                autoretencion: Number(autoretencion) || 0,
+                ciiu: 2,
+                plazoPago: getPlazoPago(),
+                vencimiento: "30",
+                status: "PENDING",
+                items: items.map((it) => {
+                    const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
+                    const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
+                    const totalAfterDiscount = baseTotal - itemDescAmount
+                    const taxPercent = Number(String(it.impuesto || "0").replace("%", "")) || 0
+                    const taxAmount = totalAfterDiscount * (taxPercent / 100)
+                    const finalAmount = totalAfterDiscount + taxAmount
+                    return {
+                        productId: it.productId || it.referencia || `ITEM-${Date.now()}`,
+                        itemCode: it.referencia || `ITEM-${Date.now()}`,
+                        quantity: 0,
+                        orderPrefix: getOrderPrefix(),
+                        orderResolution: "RES-2026-001",
+                        reference: it.referencia || "",
+                        itemName: it.descripcion || it.referencia || "",
+                        descripcion: it.descripcion || "",
+                        orderItemQuantity: Number(it.cantidad) || 0,
+                        orderItemPrice: Number(it.precio) || 0,
+                        orderItemIva: Number(taxAmount.toFixed(2)),
+                        orderItemDesc: Number(itemDescAmount.toFixed(2)),
+                        orderItemFinalAmount: Number(finalAmount.toFixed(2)),
+                    }
+                })
+            }
+            const res = await fetch(`https://plasticoslc.com/api/invoices/${invoiceId}`, {
+                method: "PUT",
+                headers: myHeaders,
+                body: JSON.stringify(payload),
+            })
+
+            if (!res.ok) {
+                const txt = await res.text().catch(() => "")
+                console.error("Error emitting invoice:", res.status, txt)
+                toast.error("Error emitiendo factura. Revisa la consola.")
+                return
+            }
+
+            const result = await res.json().catch(() => null)
+            if (result) {
+                toast.success("Factura emitida exitosamente!")
+                onSave?.()
+                onClose()
+            }
+        } catch (err) {
+            console.error("Error emitting invoice:", err)
+            toast.error("Error emitiendo factura. Revisa la consola.")
+        } finally {
+            setIsEmitting(false)
         }
     }
 
@@ -864,43 +990,13 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         return isMobile
     }
 
-    const isMobile = useIsMobile()
+    // Mobile check removed to allow responsive view
 
-    if (isMobile === null) return null
-
-    if (isMobile) {
-        return (
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] bg-white overflow-y-auto">
-                    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-                        <div className="max-w-md text-center bg-white rounded-xl shadow-sm p-6 text-gray-900">
-                            <div className="flex justify-center mb-4">
-                                <Monitor className="w-12 h-12 text-gray-400" />
-                            </div>
-
-                            <h2 className="text-sm font-semibold mb-2">
-                                Vista solo disponible en escritorio
-                            </h2>
-
-                            <p className="text-sm text-gray-600 mb-4">
-                                Este Opcion de facturación requiere una pantalla más grande para
-                                ofrecer una mejor experiencia de uso.
-                            </p>
-
-                            <p className="text-xs text-gray-400">
-                                Accede desde un computador o amplía el tamaño de tu ventana.
-                            </p>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-        )
-    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] bg-white overflow-y-auto">
-                <DialogHeader>
+            <DialogContent className="w-full h-full md:w-[95vw] md:max-w-6xl md:max-h-[90vh] bg-white overflow-y-auto z-[100] p-0 md:p-6">
+                <DialogHeader className="md:block hidden">
                     <DialogTitle className="text-xl font-bold">
                         Editar Factura
                     </DialogTitle>
@@ -909,15 +1005,15 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     initial="hidden"
                     animate="visible"
                     variants={containerVariants}
-                    className="max-w-6xl mx-auto p-6 shadow-xl bg-white rounded-lg text-gray-900"
+                    className="max-w-6xl mx-auto p-2 md:p-6 md:shadow-xl bg-white rounded-lg text-gray-900"
                 >
-                    {/* Header */}
-                    <motion.div variants={itemVariants} className="flex justify-between items-center mb-6">
+                    {/* Header Actions - Hidden on mobile step 1, or maybe keep visible? On page.tsx they were hidden. Let's hide on mobile for now and put actions at the end */}
+                    <motion.div variants={itemVariants} className={`flex justify-between items-center mb-6 ${currentStep === 1 ? "" : "hidden md:flex"}`}>
                         <div className="flex items-center">
                             {/* Title removed as it's in DialogTitle */}
                         </div>
-                        <div className="flex space-x-2">
-                            <Button variant="outline" className="flex items-center gap-1 hover:bg-[hsl(147,88%,41%)] shadow-lg hover:text-white bg-white" onClick={handleSave} disabled={isSavingDraft}>
+                        <div className="hidden md:flex space-x-2">
+                            <Button variant="outline" className="flex items-center gap-1 hover:bg-[hsl(147,88%,41%)] shadow-lg hover:text-white bg-white" onClick={handleSaveDraft} disabled={isSavingDraft}>
                                 <Save className="h-4 w-4" />
                                 {isSavingDraft ? "Guardando..." : "Guardar Cambios"}
                             </Button>
@@ -927,20 +1023,51 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                             </Button>
                             <Button
                                 variant="outline"
-                                className="items-center flex gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
-                                onClick={handleDownload}
+                                className="hidden md:flex items-center gap-1 hover:bg-[hsl(209,83%,23%)] hover:text-white bg-white"
+                                onClick={handleShowInvoicePreview}
                                 disabled={isDownloading || !invoiceId}
                             >
                                 <Download className="h-4 w-4" />
-                                {isDownloading ? "Descargando..." : "Descargar"}
+                                {isDownloading ? "Cargando..." : "Descargar"}
                             </Button>
                         </div>
                     </motion.div>
 
+                    {/* Mobile Steps Indicator */}
+                    <div className="md:hidden mb-6 pt-8">
+                        <div className="flex justify-between items-center px-4">
+                            {[1, 2, 3].map((step) => (
+                                <div key={step} className="flex items-center">
+                                    <div
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${step === currentStep
+                                            ? "bg-[hsl(209,83%,23%)] border-[hsl(209,83%,23%)] text-white"
+                                            : step < currentStep
+                                                ? "bg-green-100 border-green-500 text-green-700"
+                                                : "bg-white border-gray-200 text-gray-400"
+                                            }`}
+                                    >
+                                        {step < currentStep ? "✓" : step}
+                                    </div>
+                                    {step < 3 && (
+                                        <div
+                                            className={`h-0.5 w-12 mx-2 transition-colors ${step < currentStep ? "bg-green-500" : "bg-gray-200"
+                                                }`}
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between px-2 mt-2 text-xs text-gray-500 font-medium">
+                            <span>Datos</span>
+                            <span className="pl-4">Ítems</span>
+                            <span>Resumen</span>
+                        </div>
+                    </div>
+
                     {/* Document Type and Settings */}
                     <motion.div
                         variants={itemVariants}
-                        className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-gray-50 p-4 shadow-xl rounded-lg mb-6"
+                        className={`grid grid-cols-1 md:grid-cols-5 gap-4 bg-gray-50 p-4 shadow-xl rounded-lg mb-6 ${currentStep === 1 ? "" : "hidden md:grid"}`}
                     >
                         <div>
                             <label className="text-sm text-gray-600 block mb-2">Tipo de documento</label>
@@ -993,9 +1120,9 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Company Info */}
-                    <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start mb-6">
+                    <motion.div variants={itemVariants} className={`flex flex-col md:flex-row justify-between items-center md:items-start mb-6 gap-4 ${currentStep === 1 ? "" : "hidden md:flex"}`}>
                         <div
-                            className="w-48 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
+                            className="w-48 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden mx-auto md:mx-0"
                             onClick={() => logoInputRef.current?.click()}
                         >
                             {logoPreview || company?.logo ? (
@@ -1035,10 +1162,10 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                 <p className="text-gray-600">{company?.address || 'Calle 123 #45-67, Bogotá'}</p>
                             </div>
                         </div>
-                        <div className="w-48">
+                        <div className="w-full md:w-48 flex flex-col items-center md:items-start">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold">No.</span>
-                               <span className="text-blue-600">{orderPrefix}-{invoiceId}</span>
+                                <span className="text-blue-600">{orderPrefix}-{invoiceId}</span>
                                 <button className="text-gray-400 hover:text-gray-600">
                                     <HelpCircle className="w-4 h-4" />
                                 </button>
@@ -1057,7 +1184,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Client Info */}
-                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <motion.div variants={itemVariants} className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 ${currentStep === 1 ? "" : "hidden md:grid"}`}>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Cliente *</label>
@@ -1288,36 +1415,165 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
 
                     {/* Items Table */}
                     <motion.div variants={itemVariants} className="mb-6">
-                        <div className="">
-                            <table className="w-full mb-4">
-                                <thead>
-                                    <tr className="border-b">
-                                        <th className="text-left py-2 w-10">#</th>
-                                        <th className="text-left py-2">Referencia</th>
-                                        <th className="text-left py-2">Precio</th>
-                                        <th className="text-left py-2">Descuento</th>
-                                        <th className="text-left py-2">Impuesto</th>
-                                        <th className="text-left py-2">Descripción</th>
-                                        <th className="text-left py-2">Cantidad</th>
-                                        <th className="text-left py-2">Total</th>
-                                        <th className="text-left py-2 w-10"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.map((item, index) => (
-                                        <motion.tr
-                                            key={item.id}
-                                            className="border-b"
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3 }}
-                                        >
-                                            <td className="py-2">{index + 1}</td>
-                                            <td className="py-2">
-                                                <div className="relative">
+                        <div className={` ${currentStep === 2 ? "" : "hidden md:block"}`}>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block">
+                                <table className="w-full mb-4">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="text-left py-2 w-10">#</th>
+                                            <th className="text-left py-2">Referencia</th>
+                                            <th className="text-left py-2">Precio</th>
+                                            <th className="text-left py-2">Descuento</th>
+                                            <th className="text-left py-2">Impuesto</th>
+                                            <th className="text-left py-2">Descripción</th>
+                                            <th className="text-left py-2">Cantidad</th>
+                                            <th className="text-left py-2">Total</th>
+                                            <th className="text-left py-2 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {items.map((item, index) => (
+                                            <motion.tr
+                                                key={item.id}
+                                                className="border-b"
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                <td className="py-2">{index + 1}</td>
+                                                <td className="py-2">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            className="border bg-white rounded px-2 py-1 w-full"
+                                                            value={item.referencia}
+                                                            onChange={(e) => {
+                                                                updateItem(item.id, "referencia", e.target.value);
+                                                                setShowProductDropdown(index);
+                                                            }}
+                                                            onFocus={() => setShowProductDropdown(index)}
+                                                            onBlur={() => setTimeout(() => setShowProductDropdown(null), 150)}
+                                                            placeholder="Buscar producto..."
+                                                        />
+                                                        {showProductDropdown === index && item.referencia && (
+                                                            <ul className="absolute z-50 left-0 right-0 bg-white border rounded mt-1 max-h-48 overflow-y-auto shadow-lg">
+                                                                {loadingProducts ? (
+                                                                    <li className="px-3 py-2 text-gray-500">Cargando productos...</li>
+                                                                ) : (
+                                                                    productsList
+                                                                        .filter((p) => {
+                                                                            const q = item.referencia.toLowerCase();
+                                                                            return (
+                                                                                (p.name && p.name.toLowerCase().includes(q)) ||
+                                                                                (p.sku && p.sku.toLowerCase().includes(q)) ||
+                                                                                (p.id && p.id.toLowerCase().includes(q))
+                                                                            );
+                                                                        })
+                                                                        .slice(0, 10)
+                                                                        .map((p) => (
+                                                                            <li
+                                                                                key={p.id}
+                                                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                                onMouseDown={() => {
+                                                                                    updateItem(item.id, "referencia", { __selectedProduct: true, productId: p.id, productName: p.name, productSku: p.sku, precio: p.price });
+                                                                                    setShowProductDropdown(null);
+                                                                                }}
+                                                                            >
+                                                                                <div className="font-medium">{p.name} <span className="text-xs text-gray-400">({p.sku})</span></div>
+                                                                                <div className="text-xs text-gray-500">ID: {p.id} • Precio: ${p.price}</div>
+                                                                            </li>
+                                                                        ))
+                                                                )}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-2">
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-2 py-1 w-full"
+                                                        value={item.precio}
+                                                        min={0}
+                                                        step={0.01}
+                                                        onChange={(e) => updateItem(item.id, "precio", e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="py-2 ">
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-2 py-1 w-full"
+                                                        value={item.descuento}
+                                                        min={0}
+                                                        step={0.01}
+                                                        onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="py-2 ">
+                                                    <select
+                                                        className="border bg-white rounded px-2 py-1 w-full"
+                                                        value={item.impuesto}
+                                                        onChange={(e) => updateItem(item.id, "impuesto", e.target.value)}
+                                                    >
+                                                        <option>0%</option>
+                                                        <option>5%</option>
+                                                        <option>19%</option>
+                                                    </select>
+                                                </td>
+                                                <td className="py-2">
                                                     <input
                                                         type="text"
                                                         className="border bg-white rounded px-2 py-1 w-full"
+                                                        value={item.descripcion}
+                                                        onChange={(e) => updateItem(item.id, "descripcion", e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="py-2">
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-2 py-1 w-full"
+                                                        value={item.cantidad}
+                                                        min={0}
+                                                        step={1}
+                                                        onChange={(e) => updateItem(item.id, "cantidad", e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="py-2">{formatCurrency(calculateItemTotal(item))}</td>
+                                                <td className="py-2">
+                                                    <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </motion.tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            <div className={`md:hidden space-y-4 ${currentStep === 2 ? "" : "hidden"}`}>
+                                {items.map((item, index) => (
+                                    <motion.div
+                                        key={item.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="bg-white rounded-lg border shadow-sm p-4 space-y-3"
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <span className="font-semibold text-sm text-gray-500">#{index + 1}</span>
+                                            <button onClick={() => removeItem(item.id)} className="text-red-500 p-1 hover:bg-red-50 rounded">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {/* Producto / Referencia */}
+                                            <div>
+                                                <label className="text-xs font-semibold text-gray-500 uppercase">Producto / Referencia</label>
+                                                <div className="relative mt-1">
+                                                    <input
+                                                        type="text"
+                                                        className="border bg-white rounded px-3 py-2 w-full text-sm"
                                                         value={item.referencia}
                                                         onChange={(e) => {
                                                             updateItem(item.id, "referencia", e.target.value);
@@ -1325,107 +1581,111 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                                         }}
                                                         onFocus={() => setShowProductDropdown(index)}
                                                         onBlur={() => setTimeout(() => setShowProductDropdown(null), 150)}
-                                                        placeholder="Buscar producto por nombre, sku o id..."
+                                                        placeholder="Buscar producto..."
                                                     />
                                                     {showProductDropdown === index && item.referencia && (
                                                         <ul className="absolute z-50 left-0 right-0 bg-white border rounded mt-1 max-h-48 overflow-y-auto shadow-lg">
                                                             {loadingProducts ? (
-                                                                <li className="px-3 py-2 text-gray-500">Cargando productos...</li>
+                                                                <li className="px-3 py-2 text-gray-500 text-sm">Cargando...</li>
                                                             ) : (
                                                                 productsList
                                                                     .filter((p) => {
                                                                         const q = item.referencia.toLowerCase();
                                                                         return (
                                                                             (p.name && p.name.toLowerCase().includes(q)) ||
-                                                                            (p.sku && p.sku.toLowerCase().includes(q)) ||
-                                                                            (p.id && p.id.toLowerCase().includes(q))
+                                                                            (p.sku && p.sku.toLowerCase().includes(q))
                                                                         );
                                                                     })
-                                                                    .slice(0, 10)
+                                                                    .slice(0, 5)
                                                                     .map((p) => (
                                                                         <li
                                                                             key={p.id}
-                                                                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                                                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                                                                             onMouseDown={() => {
                                                                                 updateItem(item.id, "referencia", { __selectedProduct: true, productId: p.id, productName: p.name, productSku: p.sku, precio: p.price });
                                                                                 setShowProductDropdown(null);
                                                                             }}
                                                                         >
-                                                                            <div className="font-medium">{p.name} <span className="text-xs text-gray-400">({p.sku})</span></div>
-                                                                            <div className="text-xs text-gray-500">ID: {p.id} • Precio: ${p.price}</div>
+                                                                            <div className="font-medium">{p.name}</div>
+                                                                            <div className="text-xs text-gray-500">${p.price}</div>
                                                                         </li>
                                                                     ))
                                                             )}
                                                         </ul>
                                                     )}
                                                 </div>
-                                            </td>
-                                            <td className="py-2">
-                                                <input
-                                                    type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
-                                                    value={item.precio}
-                                                    min={0}
-                                                    step={0.01}
-                                                    max={1000000000000}
-                                                    onChange={(e) => updateItem(item.id, "precio", e.target.value)}
-                                                />
-                                            </td>
-                                            <td className="py-2 ">
-                                                <input
-                                                    type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
-                                                    value={item.descuento}
-                                                    min={0}
-                                                    max={1000000000000}
-                                                    step={0.01}
-                                                    onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
-                                                />
-                                            </td>
-                                            <td className="py-2 ">
-                                                <select
-                                                    className="border bg-white rounded px-2 py-1 w-full"
-                                                    value={item.impuesto}
-                                                    onChange={(e) => updateItem(item.id, "impuesto", e.target.value)}
-                                                >
-                                                    <option>0%</option>
-                                                    <option>5%</option>
-                                                    <option>19%</option>
-                                                </select>
-                                            </td>
-                                            <td className="py-2">
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 uppercase">Precio</label>
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-3 py-2 w-full text-sm mt-1"
+                                                        value={item.precio}
+                                                        onChange={(e) => updateItem(item.id, "precio", e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 uppercase">Cantidad</label>
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-3 py-2 w-full text-sm mt-1"
+                                                        value={item.cantidad}
+                                                        onChange={(e) => updateItem(item.id, "cantidad", e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 uppercase">Descuento</label>
+                                                    <input
+                                                        type="number"
+                                                        className="border bg-white rounded px-3 py-2 w-full text-sm mt-1"
+                                                        value={item.descuento}
+                                                        onChange={(e) => updateItem(item.id, "descuento", e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 uppercase">Impuesto</label>
+                                                    <select
+                                                        className="border bg-white rounded px-3 py-2 w-full text-sm mt-1"
+                                                        value={item.impuesto}
+                                                        onChange={(e) => updateItem(item.id, "impuesto", e.target.value)}
+                                                    >
+                                                        <option>0%</option>
+                                                        <option>5%</option>
+                                                        <option>19%</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-xs font-semibold text-gray-500 uppercase">Descripción</label>
                                                 <input
                                                     type="text"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
+                                                    className="border bg-white rounded px-3 py-2 w-full text-sm mt-1"
                                                     value={item.descripcion}
                                                     onChange={(e) => updateItem(item.id, "descripcion", e.target.value)}
+                                                    placeholder="Descripción adicional..."
                                                 />
-                                            </td>
-                                            <td className="py-2">
-                                                <input
-                                                    type="number"
-                                                    className="border bg-white rounded px-2 py-1 w-full"
-                                                    value={item.cantidad}
-                                                    min={0}
-                                                    step={1}
-                                                    max={1000000}
-                                                    onChange={(e) => updateItem(item.id, "cantidad", e.target.value)}
-                                                />
-                                            </td>
-                                            <td className="py-2">{formatCurrency(calculateItemTotal(item))}</td>
-                                            <td className="py-2">
-                                                <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            </div>
+
+                                            <div className="pt-2 border-t flex justify-between items-center">
+                                                <span className="font-semibold text-sm">Total Ítem</span>
+                                                <span className="font-bold text-base text-[hsl(209,83%,23%)]">
+                                                    {formatCurrency(calculateItemTotal(item))}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
                         </div>
                         <motion.button
                             onClick={addItem}
-                            className="flex items-center gap-2 text-[hsl(209,83%,23%)] hover:text-[hsl(209,84%,15%)]"
+                            className={`flex mt-5 items-center gap-2 text-[hsl(209,83%,23%)] hover:text-[hsl(209,84%,15%)] ${currentStep === 2 ? "" : "hidden md:flex"}`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >
@@ -1435,7 +1695,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Totals */}
-                    <motion.div variants={itemVariants} className="flex justify-end mb-6">
+                    <motion.div variants={itemVariants} className={`flex justify-center md:justify-end mb-6 ${currentStep === 3 ? "" : "hidden md:flex"}`}>
                         <div className="w-64 space-y-2">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
@@ -1457,9 +1717,9 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Signature and Terms */}
-                    <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                    <motion.div variants={itemVariants} className={`grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 ${currentStep === 3 ? "" : "hidden md:grid"}`}>
                         <div
-                            className="border-2  border-dashed border-gray-300 h-32 flex items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
+                            className="hidden md:flex border-2  border-dashed border-gray-300 h-32 items-center justify-center rounded-lg cursor-pointer hover:bg-gray-50 transition-colors relative overflow-hidden"
                             onClick={() => signatureInputRef.current?.click()}
                         >
                             {signaturePreview ? (
@@ -1757,7 +2017,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Retenciones */}
-                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                    <motion.div variants={itemVariants} className={`mt-6 border-t pt-4 ${currentStep === 3 ? "" : "hidden md:block"}`}>
                         <h3 className="font-semibold mb-4">Retenciones</h3>
                         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                             <div>
@@ -1808,7 +2068,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                     </motion.div>
 
                     {/* Notes */}
-                    <motion.div variants={itemVariants} className="mt-6 border-t pt-4">
+                    <motion.div variants={itemVariants} className={`mt-6 border-t pt-4 ${currentStep === 3 ? "" : "hidden md:block"}`}>
                         <h3 className="font-semibold mb-2">Notas internas</h3>
                         <textarea
                             className="w-full bg-white border rounded p-2 h-24 text-sm text-gray-600"
@@ -1817,6 +2077,32 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                             onChange={(e) => setNotes(e.target.value)}
                         ></textarea>
                     </motion.div>
+                    {/* Spacer to prevent content from being hidden behind sticky nav */}
+                    <div className="md:hidden h-16"></div>
+
+                    {/* Mobile Wizard Navigation - In fixed dialog, bottom-0 is better */}
+                    <div className="md:hidden flex justify-between mt-6 pt-4 border-t sticky bottom-0 bg-white p-4 -mx-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+                        {currentStep > 1 && (
+                            <Button variant="outline" onClick={() => setCurrentStep(prev => prev - 1)}>
+                                <ChevronLeft className="w-4 h-4 mr-1" /> Atrás
+                            </Button>
+                        )}
+
+                        {currentStep < 3 ? (
+                            <Button className="ml-auto" onClick={() => setCurrentStep(prev => prev + 1)}>
+                                Siguiente <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                        ) : (
+                            <div className="flex gap-2 ml-auto">
+                                <Button variant="outline" onClick={handleSaveDraft} disabled={isSavingDraft}>
+                                    <Save className="w-4 h-4 mr-1" /> Guardar
+                                </Button>
+                                <Button onClick={handleEmitInvoice} disabled={isEmitting} className="hidden">
+                                    <Send className="w-4 h-4 mr-1" /> Emitir
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </motion.div>
 
                 {/* Download Dialog */}
@@ -1844,6 +2130,48 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                                 </Button>
                             </div>
                         </div>
+                    </DialogContent>
+                </Dialog>
+                {/* Preview Modal */}
+                <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+                    <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-white p-0 overflow-hidden z-[110]">
+                        <DialogHeader className="p-4 border-b">
+                            <DialogTitle>Previsualización de Factura</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex-1 w-full h-full">
+                            {previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-full h-[calc(90vh-80px)] border-none"
+                                    title="Invoice Preview"
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <p>Cargando previsualización...</p>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter className="p-4 border-t bg-gray-50">
+                            <div className="flex justify-end gap-2 px-4 py-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (previewUrl) {
+                                            const a = document.createElement('a');
+                                            a.href = previewUrl;
+                                            a.download = `invoice-${invoiceId}.pdf`;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
+                                        }
+                                    }}
+                                >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Descargar PDF
+                                </Button>
+                                <Button onClick={() => setShowPreviewModal(false)}>Cerrar</Button>
+                            </div>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
 

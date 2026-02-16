@@ -27,7 +27,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center  bg-white p-4">
+    <div className="min-h-screen flex items-center justify-center  bg-white lg:p-4">
       <div className="w-full max-w-5xl">
         <div className="grid grid-cols-1  lg:grid-cols-2 gap-6 rounded-3xl overflow-hidden shadow-2xl bg-white">
           {/* Left Panel - Blue Section */}
@@ -39,7 +39,7 @@ export function LoginPage() {
             </div>
 
             <div className="relative z-10 text-center">
-          
+
               {/* Content */}
               <h2 className="text-3xl font-bold mb-1"> Bienvenido a PlasticosLC</h2>
               <img
@@ -68,9 +68,15 @@ export function LoginPage() {
           {/* Right Panel - Form Section */}
           <div className="flex flex-col justify-center p-8 lg:p-12">
             {/* Logo for mobile */}
-            <div className="flex lg:hidden items-center justify-center mb-8">
+            <div className="flex hidden lg:hidden items-center justify-center mb-8">
               <span className="text-2xl font-bold text-[hsl(217,85%,50%)]">PLC</span>
             </div>
+            {/* Logo for mobile */}
+            <img
+              src="/Logo-PlasticosLC.png"
+              alt="Logo PlasticosLC"
+              className="mx-auto mb-8 w-20 h-20 object-contain lg:hidden"
+            />
 
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-[hsl(222,15%,10%)] mb-2">

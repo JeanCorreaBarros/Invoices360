@@ -93,7 +93,7 @@ export function SummaryCards() {
       try {
         setIsLoading(true)
         const token = sessionStorage.getItem("token")
-        
+
         if (!token) {
           throw new Error("Token de autenticación no encontrado")
         }
@@ -105,7 +105,7 @@ export function SummaryCards() {
             "Content-Type": "application/json",
           },
         })
-        
+
         if (!response.ok) throw new Error("Error fetching invoice data")
         const result = await response.json()
         setData(result.data)
@@ -145,9 +145,9 @@ export function SummaryCards() {
 
   const payoutData = data
     ? {
-        ...payoutDataTemplate,
-        amount: formatCurrency(data.availableForPayment.total),
-      }
+      ...payoutDataTemplate,
+      amount: formatCurrency(data.availableForPayment.total),
+    }
     : { ...payoutDataTemplate, amount: "0.00" }
 
   if (error) {
@@ -204,16 +204,25 @@ export function SummaryCards() {
       ))}
 
       {/* Payout Card */}
-      <div className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-3">
+      <div className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between min-h-[160px] hover:scale-95 transition-all shadow-xl">
         <div className="flex items-center justify-between">
-          <span className="text-black text-xs font-sans">{payoutData.label}</span>
-          <span className="text-xs text-muted-foreground font-sans">{payoutData.expects}</span>
+          <span className="text-black text-[10px] font-black font-sans uppercase tracking-widest">{payoutData.label}</span>
+          <span className="text-[10px] text-muted-foreground font-sans bg-gray-100 px-2 py-0.5 rounded-full">{payoutData.expects}</span>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-[hsl(0,0%,55%)] text-sm font-sans">$</span>
-          <span className="text-2xl font-bold text-[hsl(0,3%,14%)] font-sans tracking-tight">
-            {payoutData.amount}
-          </span>
+
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <div className="flex flex-col">
+            <span className="text-3xl font-black text-[hsl(209,83%,23%)] font-sans tracking-tight">
+              ${payoutData.amount}
+            </span>
+          </div>
+          <div className="w-24 h-24 bg-white rounded-2xl p-2 shadow-sm border border-gray-100 flex items-center justify-center shrink-0">
+            <img
+              src="/Logo-PlasticosLC.png"
+              alt="Logo Plásticos LC"
+              className="w-full h-full object-contain"
+            />
+          </div>
         </div>
         {/* Payment methods */}
         <div className="flex hidden flex-wrap items-center gap-2 mt-1">

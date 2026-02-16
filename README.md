@@ -131,7 +131,7 @@ El sistema utiliza un contexto de React (`AuthProvider`) para manejar la autenti
 - **Framework CSS**: Tailwind CSS
 - **Colores principales**:
   - Fondo oscuro: `hsl(228,14%,9%)`
-  - Verde principal: `hsl(90,100%,50%)`
+  - Azul institucional: `hsl(209,79%,27%)`
   - Texto claro: `hsl(0,0%,95%)`
 
 ### Componentes UI

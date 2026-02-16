@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { Plus, Edit, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Edit, Search, ChevronLeft, ChevronRight, User, Mail, Shield, Key, UserCog, UserCircle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import toast from "react-hot-toast"
@@ -447,76 +447,127 @@ export default function UsuariosPage() {
       </main>
       <MobileBottomNav />
       {/* Modal */}
-      <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>{isEdit ? "Editar usuario" : "Crear usuario"}</DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="bg-white w-[calc(100%-1.5rem)] sm:max-w-xl max-h-[94dvh] overflow-hidden rounded-3xl p-0 border-none shadow-2xl flex flex-col">
+          <div className={`px-6 py-5 ${isEdit ? 'bg-[hsl(209,79%,27%,0.05)]' : 'bg-[hsl(209,79%,27%,0.02)]'} border-b border-gray-100 flex items-center justify-between`}>
             <div>
-              <label className="block text-sm font-medium mb-1">Nombre</label>
-              <input
-                type="text"
-                placeholder="Nombre completo"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full p-2 border rounded-lg"
-                required
-              />
+              <DialogTitle className={`text-xl font-black ${isEdit ? 'text-[hsl(209,79%,20%)]' : 'text-[hsl(209,79%,27%)]'}`}>
+                {isEdit ? "Editar Usuario" : "Nuevo Usuario"}
+              </DialogTitle>
+              <p className={`text-[11px] font-bold uppercase tracking-widest mt-0.5 ${isEdit ? 'text-[hsl(209,79%,40%)]' : 'text-gray-400'}`}>
+                {isEdit ? `ID: ${selectedUserId?.split('-')[0]}...` : "Control de acceso y roles"}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-hide">
+              {isEdit && (
+                <div className="flex items-center gap-4 p-5 bg-[hsl(209,79%,27%,0.02)] rounded-2xl border border-[hsl(209,79%,27%,0.08)]">
+                  <div className="w-14 h-14 rounded-full bg-[hsl(209,79%,27%)] flex items-center justify-center shrink-0 shadow-lg shadow-blue-900/10">
+                    <UserCog className="text-white" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-gray-900 leading-tight truncate max-w-[200px]">{form.email}</h4>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-0.5">Perfil de usuario</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <User size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                      placeholder="Juan Pérez"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Email / Usuario</label>
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Mail size={18} />
+                    </div>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                      placeholder="juan@empresa.com"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">
+                    {isEdit ? "Contraseña (Opcional)" : "Contraseña"}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Key size={18} />
+                    </div>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      className="w-full h-12 pl-11 pr-4 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-medium"
+                      placeholder="••••••••"
+                      required={!isEdit}
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">Rol Asignado</label>
+                  <div className="relative">
+                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Shield size={18} />
+                    </div>
+                    <select
+                      value={form.roleId}
+                      onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+                      className="w-full h-12 pl-11 pr-10 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-[hsl(209,79%,27%)] transition-all outline-none text-sm font-bold appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23a0aec0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right:1rem_center] bg-no-repeat"
+                      required
+                    >
+                      <option value="" disabled>Seleccionar un rol...</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                placeholder="correo@ejemplo.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full p-2 border rounded-lg"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Contraseña {isEdit && "(dejar vacío para no cambiar)"}
-              </label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full p-2 border rounded-lg"
-                required={!isEdit}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Rol</label>
-              <select
-                value={form.roleId}
-                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-                className="w-full p-2 border rounded-lg"
-                required
+            <div className="px-6 py-4 bg-gray-50/80 backdrop-blur-md border-t border-gray-100 flex flex-col-reverse sm:flex-row gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 h-12 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
               >
-                <option value="">Seleccionar rol</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading} className="bg-blue-700 hover:bg-blue-800 text-white">
-                {loading ? "Guardando..." : "Guardar"}
+              <Button
+                type="submit"
+                disabled={loading}
+                className={`flex-[2] h-12 text-white font-black rounded-xl transition-all shadow-lg active:scale-[0.98] ${isEdit ? 'bg-[hsl(209,79%,20%)] hover:bg-[hsl(209,79%,25%)]' : 'bg-[hsl(209,79%,27%)] hover:bg-[hsl(209,79%,32%)]'
+                  }`}
+              >
+                {loading ? "Procesando..." : isEdit ? "Guardar Cambios" : "Crear Usuario"}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
