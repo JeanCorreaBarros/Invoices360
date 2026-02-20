@@ -11,6 +11,8 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    if (!pathname || !router) return
+
     // No proteger la ruta de login
     if (pathname === "/") {
       setIsLoading(false)
@@ -34,9 +36,11 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
   // Escuchar el evento popstate (navegación hacia atrás)
   useEffect(() => {
+    if (typeof window === "undefined" || !router) return
+
     const handlePopState = () => {
       const token = sessionStorage.getItem("token")
-      
+
       // Si no hay token y no estamos en login, redirigir
       if (!token && pathname !== "/") {
         router.replace("/")

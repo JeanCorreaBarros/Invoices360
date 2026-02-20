@@ -11,8 +11,8 @@ import { HotToaster } from "@/components/hot-toaster"
 const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
-  title: "PlasticosLC - Facturacion",
-  description: "Sistema de facturacion y gestion de cobros para PlasticosLC",
+  title: "PlasticosLC - Facturación",
+  description: "Sistema de facturación y gestión de cobros para PlasticosLC",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -29,8 +29,6 @@ export const viewport: Viewport = {
   themeColor: "#181c27",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 }
 
 export default function RootLayout({
