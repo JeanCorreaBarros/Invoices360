@@ -78,6 +78,9 @@ export default function NuevaFacturaPage() {
     // Arrays de opciones para pagos
     const paymentFormsOptions = [
         { label: "Contado", value: 1 },
+        { label: "Crédito 5 días", value: 6 },
+        { label: "Crédito 10 días", value: 7 },
+        { label: "Crédito 15 días", value: 5 },
         { label: "Crédito 30 días", value: 2 },
         { label: "Crédito 60 días", value: 3 },
         { label: "Crédito 90 días", value: 4 },
@@ -219,6 +222,12 @@ export default function NuevaFacturaPage() {
         switch (formaPago) {
             case "Contado":
                 return "0";
+            case "Crédito 5 días":
+                return "5";
+            case "Crédito 10 días":
+                return "10";
+            case "Crédito 15 días":
+                return "15";
             case "Crédito 30 días":
                 return "30";
             case "Crédito 60 días":
@@ -398,7 +407,7 @@ export default function NuevaFacturaPage() {
             autoretencion: Number(autoretencion) || 0,
             ciiu: 0,
             plazoPago: getPlazoPago(),
-            vencimiento: "30",
+            vencimiento: getPlazoPago(),
             status: "1",
             items: items.map((it) => {
                 const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
@@ -699,7 +708,7 @@ export default function NuevaFacturaPage() {
                 autoretencion: Number(autoretencion) || 0,
                 ciiu: 2,
                 plazoPago: getPlazoPago(),
-                vencimiento: "30",
+                vencimiento: getPlazoPago(),
                 status: "DRAFT",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
@@ -732,19 +741,58 @@ export default function NuevaFacturaPage() {
                 body: JSON.stringify(payload),
             })
 
+            let created;
+            try {
+                created = await res.json();
+            } catch {
+                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            }
+
             if (!res.ok) {
-                const txt = await res.text().catch(() => "")
-                /*console.error("Error saving draft:", res.status, txt)*/
-                toast.error("Error guardando borrador. Revisa la consola.");
+                toast.error(created?.message || "Error guardando borrador. Revisa la consola.");
                 return
             }
 
-            const created = await res.json().catch(() => null)
             if (created) {
                 toast.success("Borrador guardado exitosamente!")
                 // Store the invoice ID for downloads
-                setCurrentInvoiceId(created?.id ?? created?.invoiceId ?? null)
-                // Reset form or navigate
+                const newId = created?.id ?? created?.invoiceId ?? created?.invoice?.id ?? null;
+                setCurrentInvoiceId(newId)
+
+                // Show preview modal automatically
+                if (newId) {
+                    handleShowInvoicePreview(newId);
+                }
+
+                // Limpiar todos los inputs al guardar borrador
+                setCliente("");
+                setIdentificacion("");
+                setTelefono("");
+                setEmail("");
+                setDireccion("");
+                setFecha(new Date().toISOString().split("T")[0]);
+                setFormaPago("Contado");
+                setMedioPago("Efectivo");
+                setShowPaymentMethodDialog(false);
+                setMetodoPagoDetalle("");
+                setItems([
+                    {
+                        id: Date.now(),
+                        referencia: "",
+                        precio: 0,
+                        descuento: 0,
+                        impuesto: "0%",
+                        descripcion: "",
+                        cantidad: 1,
+                        total: 0,
+                    },
+                ]);
+                setSignaturePreview(null);
+                const canvas = signatureCanvasRef.current;
+                if (canvas) {
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
             }
         } catch (err) {
             /*console.error("Error saving draft:", err)*/
@@ -835,7 +883,7 @@ export default function NuevaFacturaPage() {
                 autoretencion: Number(autoretencion) || 0,
                 ciiu: 0,
                 plazoPago: getPlazoPago(),
-                vencimiento: "30",
+                vencimiento: getPlazoPago(),
                 status: "PENDING",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
@@ -876,7 +924,7 @@ export default function NuevaFacturaPage() {
                 throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             }
 
-            if (data.ok) {
+            if (data && (data.ok || res.ok)) {
                 toast.success(data.message || `Factura emitida correctamente (id: ${data?.id ?? data?.invoiceId ?? data?.invoice?.id ?? "-"})`);
                 console.log("Emit invoice response:", data);
 
@@ -995,14 +1043,14 @@ export default function NuevaFacturaPage() {
                                 <Download className="h-4 w-4" />
                                 {isDownloading ? "Descargando..." : "Descargar"}
                             </Button>
-                            <Button
-                                className="bg-blue-900 hover:bg-[hsl(209,83%,23%)] hover:scale-95 text-white flex items-center gap-1"
+                            {/* <Button
+                                className="bg-blue-900 hidden hover:bg-[hsl(209,83%,23%)] hover:scale-95 text-white flex items-center gap-1"
                                 onClick={handleEmitInvoice}
                                 disabled={isEmitting}
                             >
                                 <Send className="h-4 w-4" />
                                 {isEmitting ? "Emitiendo..." : "Emitir Factura"}
-                            </Button>
+                            </Button>*/}
                         </div>
                     </motion.div>
 
@@ -1097,8 +1145,8 @@ export default function NuevaFacturaPage() {
                             />
                         </div>
 
-                        <div className="flex-1 px-0 md:px-8 my-0 text-center md:text-left">
-                            <div className="">
+                        <div className="flex-1 px-0 md:px-8 my-0 text-center">
+                            <div className=" ">
                                 <h2 className="text-lg font-semibold">{company?.tradeName || company?.businessName || 'PlasticosLC'}</h2>
                                 <p className="text-gray-600">NIT: {company?.nit || '900.123.456-7'}{company?.dv ? `-${company.dv}` : ''}</p>
                                 <p className="text-gray-600">{company?.email || 'contacto@PlasticosLC.com'}</p>
