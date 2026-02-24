@@ -15,7 +15,7 @@ export function InvoiceList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-  const [limit] = useState(5)
+  const [limit, setLimit] = useState(10)
   const [total, setTotal] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -323,6 +323,31 @@ export function InvoiceList() {
               ))
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {total > limit && (
+            <div className="flex items-center justify-between mt-4 px-2 py-3 bg-white/50 backdrop-blur-sm rounded-xl border border-border/50">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-border shadow-sm text-xs font-semibold text-[hsl(209,83%,23%)] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Anterior
+              </button>
+              <div className="text-xs font-bold text-[hsl(209,83%,23%)] font-sans">
+                Página <span className="bg-[hsl(209,83%,23%)] text-white px-2 py-0.5 rounded mx-1">{page}</span> de {Math.ceil(total / limit)}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= Math.ceil(total / limit)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-border shadow-sm text-xs font-semibold text-[hsl(209,83%,23%)] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Invoice detail */}
