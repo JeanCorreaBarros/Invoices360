@@ -81,6 +81,9 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
     // Arrays de opciones para pagos
     const paymentFormsOptions = [
         { label: "Contado", value: 1 },
+        { label: "Crédito 5 días", value: 6 },
+        { label: "Crédito 10 días", value: 7 },
+        { label: "Crédito 15 días", value: 5 },
         { label: "Crédito 30 días", value: 2 },
         { label: "Crédito 60 días", value: 3 },
         { label: "Crédito 90 días", value: 4 },
@@ -241,6 +244,12 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
         switch (formaPago) {
             case "Contado":
                 return "0";
+            case "Crédito 5 días":
+                return "5";
+            case "Crédito 10 días":
+                return "10";
+            case "Crédito 15 días":
+                return "15";
             case "Crédito 30 días":
                 return "30";
             case "Crédito 60 días":
@@ -471,8 +480,8 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             autoretencion: Number(autoretencion) || 0,
             ciiu: 0,
             plazoPago: getPlazoPago(),
-            vencimiento: "30",
-            status: "1",
+            vencimiento: getPlazoPago(),
+            status: invoiceStatus,
             items: items.map((it) => {
                 const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
                 const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
@@ -767,8 +776,8 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 autoretencion: Number(autoretencion) || 0,
                 ciiu: 2,
                 plazoPago: getPlazoPago(),
-                vencimiento: "30",
-                status: "draft",
+                vencimiento: getPlazoPago(),
+                status: invoiceStatus,
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
                     const itemDescAmount = Math.min(Number(it.descuento) || 0, baseTotal)
@@ -809,6 +818,32 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
             const created = await res.json().catch(() => null)
             if (created) {
                 toast.success("Borrador actualizado exitosamente!")
+
+                // Limpiar campos y cerrar
+                setCliente("");
+                setIdentificacion("");
+                setTelefono("");
+                setEmail("");
+                setDireccion("");
+                setItems([
+                    {
+                        id: Date.now(),
+                        referencia: "",
+                        precio: 0,
+                        descuento: 0,
+                        impuesto: "0%",
+                        descripcion: "",
+                        cantidad: 1,
+                        total: 0,
+                    },
+                ]);
+                setTotal(0);
+                setSubtotal(0);
+                setImpuestos(0);
+                setDescuento(0);
+                setNotes("");
+                setSignaturePreview(null);
+
                 onSave?.()
                 onClose()
             }
@@ -858,7 +893,7 @@ export function InvoiceEditDialog({ invoiceId, isOpen, onClose, onSave }: Invoic
                 autoretencion: Number(autoretencion) || 0,
                 ciiu: 2,
                 plazoPago: getPlazoPago(),
-                vencimiento: "30",
+                vencimiento: getPlazoPago(),
                 status: "PENDING",
                 items: items.map((it) => {
                     const baseTotal = (Number(it.precio) || 0) * (Number(it.cantidad) || 0)
